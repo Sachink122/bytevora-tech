@@ -192,6 +192,10 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
   return res.json({ user: sanitizeUser(adminUser) })
 })
 
-app.listen(PORT, () => {
-  console.log(`Auth API running on http://localhost:${PORT}`)
-})
+export default app;
+
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`Auth API running on http://localhost:${PORT}`)
+  })
+}
