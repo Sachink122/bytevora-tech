@@ -27,9 +27,9 @@ const allowedOrigins = (process.env.AUTH_ALLOWED_ORIGINS || '*')
   .filter(Boolean)
 
 const corsOptions = {
-  origin: allowedOrigins.includes('*') ? true : allowedOrigins,
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  origin: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   credentials: true,
 }
 
@@ -41,9 +41,9 @@ const adminUser = {
   passwordHash: bcrypt.hashSync(ADMIN_PASSWORD, 10),
 }
 
-let currentRefreshToken = null
-
-app.use(helmet())
+app.use(helmet({
+  contentSecurityPolicy: false,
+}))
 app.use(cors(corsOptions))
 app.use(express.json())
 app.use(cookieParser())
