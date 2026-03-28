@@ -87,7 +87,7 @@ const Navbar = () => {
               Admin
             </Link>
             <Link
-              to="/contact"
+              to="/join-us"
               className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold rounded-full hover:shadow-lg hover:shadow-blue-500/30 hover:scale-105 transition-all duration-300"
             >
               Join Us
