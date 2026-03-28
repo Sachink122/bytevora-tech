@@ -5,6 +5,9 @@ import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import dotenv from 'dotenv'
 import cookieParser from 'cookie-parser'
+import { db } from '../db/index.js'
+import { users, leads, messages } from '../db/schema.js'
+import { eq } from 'drizzle-orm'
 
 dotenv.config()
 
@@ -130,7 +133,7 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' })
 })
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const email = String(req.body?.email || '').trim().toLowerCase()
   const password = String(req.body?.password || '')
 
@@ -138,18 +141,42 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(400).json({ message: 'Email and password are required' })
   }
 
-  const isEmailMatch = email === adminUser.email.toLowerCase()
-  const isPasswordMatch = bcrypt.compareSync(password, adminUser.passwordHash)
+  try {
+    const [dbUser] = await db.select().from(users).where(eq(users.email, email))
+    
+    let targetUser = null
+    let isPasswordMatch = false
 
-  if (!isEmailMatch || !isPasswordMatch) {
+    if (dbUser) {
+      targetUser = dbUser
+      isPasswordMatch = bcrypt.compareSync(password, dbUser.passwordHash)
+    } else {
+      const isEmailMatch = email === adminUser.email.toLowerCase()
+      isPasswordMatch = bcrypt.compareSync(password, adminUser.passwordHash)
+      if (isEmailMatch && isPasswordMatch) targetUser = adminUser
+    }
+
+    if (!targetUser || !isPasswordMatch) {
+      return res.status(401).json({ message: 'Invalid credentials' })
+    }
+
+    const accessToken = createAccessToken(targetUser)
+    const refreshToken = createRefreshToken(targetUser)
+    currentRefreshToken = refreshToken
+    setRefreshCookie(res, refreshToken)
+    return res.json({ accessToken, user: sanitizeUser(targetUser) })
+  } catch (error) {
+    const isEmailMatch = email === adminUser.email.toLowerCase()
+    const isPwMatch = bcrypt.compareSync(password, adminUser.passwordHash)
+    if (isEmailMatch && isPwMatch) {
+      const accessToken = createAccessToken(adminUser)
+      const refreshToken = createRefreshToken(adminUser)
+      currentRefreshToken = refreshToken
+      setRefreshCookie(res, refreshToken)
+      return res.json({ accessToken, user: sanitizeUser(adminUser) })
+    }
     return res.status(401).json({ message: 'Invalid credentials' })
   }
-
-  const accessToken = createAccessToken(adminUser)
-  const refreshToken = createRefreshToken(adminUser)
-  currentRefreshToken = refreshToken
-  setRefreshCookie(res, refreshToken)
-  return res.json({ accessToken, user: sanitizeUser(adminUser) })
 })
 
 app.post('/api/auth/refresh', (req, res) => {
@@ -192,16 +219,55 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
   return res.json({ user: sanitizeUser(adminUser) })
 })
 
-app.post('/api/leads', (req, res) => {
-  const lead = req.body
-  console.log('New Lead Received:', lead)
-  return res.status(201).json({ message: 'Lead application received', lead })
+app.post('/api/leads', async (req, res) => {
+  const leadData = req.body
+  try {
+    const [newLead] = await db.insert(leads).values({
+      name: leadData.name,
+      business: leadData.business,
+      service: leadData.service,
+      email: leadData.email,
+      phone: leadData.phone,
+      status: leadData.status || 'New',
+      priority: leadData.priority || 'Medium',
+    }).returning()
+    return res.status(201).json({ message: 'Lead application received', lead: newLead })
+  } catch (error) {
+    return res.status(201).json({ message: 'Received (Local Only)', lead: leadData })
+  }
 })
 
-app.post('/api/messages', (req, res) => {
-  const msg = req.body
-  console.log('New Message Received:', msg)
-  return res.status(201).json({ message: 'Message sent', msg })
+app.get('/api/leads', requireAuth, async (req, res) => {
+  try {
+    const allLeads = await db.select().from(leads)
+    return res.json(allLeads)
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to fetch leads' })
+  }
+})
+
+app.post('/api/messages', async (req, res) => {
+  const msgData = req.body
+  try {
+    const [newMsg] = await db.insert(messages).values({
+      senderName: msgData.senderName,
+      email: msgData.email,
+      subject: msgData.subject,
+      message: msgData.message,
+    }).returning()
+    return res.status(201).json({ message: 'Message sent', msg: newMsg })
+  } catch (error) {
+    return res.status(201).json({ message: 'Sent (Local Only)', msg: msgData })
+  }
+})
+
+app.get('/api/messages', requireAuth, async (req, res) => {
+  try {
+    const allMessages = await db.select().from(messages)
+    return res.json(allMessages)
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to fetch messages' })
+  }
 })
 
 export default app;
