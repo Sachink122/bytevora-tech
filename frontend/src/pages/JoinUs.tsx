@@ -58,6 +58,7 @@ const JoinUs = () => {
     ].join('\n')
 
     try {
+      // 1. Send to Local Storage (Keep for instant UI update)
       const rawLeads = window.localStorage.getItem('admin-leads')
       const leads = rawLeads ? (JSON.parse(rawLeads) as LeadRecord[]) : []
       const nextLead: LeadRecord = {
@@ -94,6 +95,19 @@ const JoinUs = () => {
 
       window.dispatchEvent(new CustomEvent('local-storage-update', { detail: { key: 'admin-leads' } }))
       window.dispatchEvent(new CustomEvent('local-storage-update', { detail: { key: 'admin-messages' } }))
+
+      // 2. Send to Backend API
+      fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nextLead),
+      }).catch(console.error)
+
+      fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nextMessage),
+      }).catch(console.error)
 
       setSubmitted(true)
       setFirstName('')

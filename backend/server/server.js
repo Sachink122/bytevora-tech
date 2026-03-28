@@ -192,6 +192,18 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
   return res.json({ user: sanitizeUser(adminUser) })
 })
 
+app.post('/api/leads', (req, res) => {
+  const lead = req.body
+  console.log('New Lead Received:', lead)
+  return res.status(201).json({ message: 'Lead application received', lead })
+})
+
+app.post('/api/messages', (req, res) => {
+  const msg = req.body
+  console.log('New Message Received:', msg)
+  return res.status(201).json({ message: 'Message sent', msg })
+})
+
 export default app;
 
 if (process.env.NODE_ENV !== 'production') {
