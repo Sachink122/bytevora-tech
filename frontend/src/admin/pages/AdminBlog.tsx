@@ -104,6 +104,9 @@ OUTPUT FORMAT:
     const hydrateFromApi = async () => {
       try {
         const token = localStorage.getItem('agency_auth_token') || ''
+        const localRaw = localStorage.getItem('admin-blog')
+        const localRecords = localRaw ? (JSON.parse(localRaw) as BlogRecord[]) : []
+
         if (!token) {
           setIsHydrated(true)
           return
@@ -118,7 +121,10 @@ OUTPUT FORMAT:
 
         if (response.ok) {
           const records = (await response.json()) as BlogRecord[]
-          localStorage.setItem('admin-blog', JSON.stringify(records))
+          // Never wipe local records on refresh if API currently returns empty.
+          if (records.length > 0 || localRecords.length === 0) {
+            localStorage.setItem('admin-blog', JSON.stringify(records))
+          }
         }
       } catch {
         // Keep local draft data if API is not available.
