@@ -6,7 +6,7 @@ import bcrypt from 'bcryptjs'
 import dotenv from 'dotenv'
 import cookieParser from 'cookie-parser'
 import { db } from '../db/index.js'
-import { users, leads, messages } from '../db/schema.js'
+import { users, leads, messages, blogPosts } from '../db/schema.js'
 import { eq } from 'drizzle-orm'
 
 dotenv.config()
@@ -45,6 +45,7 @@ const adminUser = {
 }
 
 let currentRefreshToken = null
+let blogPostsFallback = []
 
 app.use(helmet({
   contentSecurityPolicy: false,
@@ -269,6 +270,77 @@ app.get('/api/messages', requireAuth, async (req, res) => {
     return res.json(allMessages)
   } catch (error) {
     return res.status(500).json({ message: 'Failed to fetch messages' })
+  }
+})
+
+const sanitizeBlogPayload = (input = {}) => ({
+  topic: String(input.topic || ''),
+  targetKeyword: String(input.targetKeyword || ''),
+  location: String(input.location || ''),
+  title: String(input.title || ''),
+  slug: String(input.slug || ''),
+  author: String(input.author || ''),
+  publishDate: String(input.publishDate || ''),
+  metaTitle: String(input.metaTitle || ''),
+  metaDescription: String(input.metaDescription || ''),
+  keywords: String(input.keywords || ''),
+  featureImage: String(input.featureImage || ''),
+  imageSuggestions: String(input.imageSuggestions || ''),
+  internalLinks: String(input.internalLinks || ''),
+  summary: String(input.summary || ''),
+  contentHtml: String(input.contentHtml || ''),
+  status: String(input.status || 'Draft') || 'Draft',
+})
+
+const sortBlogPosts = (items) =>
+  [...items].sort((a, b) => {
+    const aTime = new Date(a.publishDate || a.createdAt || '').getTime()
+    const bTime = new Date(b.publishDate || b.createdAt || '').getTime()
+    return bTime - aTime
+  })
+
+app.get('/api/blog-posts', async (_req, res) => {
+  try {
+    const posts = await db.select().from(blogPosts)
+    const publishedPosts = sortBlogPosts(posts).filter((post) => (post.status || 'Draft') === 'Published')
+    return res.json(publishedPosts)
+  } catch {
+    const publishedPosts = sortBlogPosts(blogPostsFallback).filter((post) => (post.status || 'Draft') === 'Published')
+    return res.json(publishedPosts)
+  }
+})
+
+app.get('/api/admin/blog-posts', requireAuth, async (_req, res) => {
+  try {
+    const posts = await db.select().from(blogPosts)
+    return res.json(sortBlogPosts(posts))
+  } catch {
+    return res.json(sortBlogPosts(blogPostsFallback))
+  }
+})
+
+app.post('/api/admin/blog-posts/sync', requireAuth, async (req, res) => {
+  const postsInput = Array.isArray(req.body?.posts) ? req.body.posts : []
+  const nowIso = new Date().toISOString()
+
+  const normalizedPosts = postsInput.map((post, index) => ({
+    id: Number(post.id) || index + 1,
+    createdAt: post.createdAt ? new Date(post.createdAt) : new Date(nowIso),
+    ...sanitizeBlogPayload(post),
+  }))
+
+  try {
+    await db.delete(blogPosts)
+    if (normalizedPosts.length) {
+      await db.insert(blogPosts).values(normalizedPosts)
+    }
+    return res.json({ message: 'Blog posts synced', count: normalizedPosts.length })
+  } catch {
+    blogPostsFallback = normalizedPosts.map((post) => ({
+      ...post,
+      createdAt: post.createdAt.toISOString(),
+    }))
+    return res.json({ message: 'Blog posts synced to fallback storage', count: normalizedPosts.length })
   }
 })
 

@@ -9,10 +9,11 @@ import { useLocalStorageState } from '../hooks/useLocalStorageState'
 interface FieldConfig {
   key: string
   label: string
-  type?: 'text' | 'textarea' | 'number' | 'date' | 'url' | 'select'
+  type?: 'text' | 'textarea' | 'number' | 'date' | 'url' | 'select' | 'file'
   required?: boolean
   placeholder?: string
   options?: string[]
+  accept?: string
 }
 
 interface RecordItem {
@@ -65,6 +66,7 @@ const AdminSimpleManager = ({
 
   const [newForm, setNewForm] = useState<Record<string, string>>(emptyForm)
   const [editForm, setEditForm] = useState<Record<string, string>>(emptyForm)
+  const [newStatus, setNewStatus] = useState(defaultStatus)
 
   const validate = (form: Record<string, string>) => {
     const requiredFields = fields.filter((field) => field.required)
@@ -76,7 +78,10 @@ const AdminSimpleManager = ({
     return true
   }
 
-  const resetNewForm = () => setNewForm(emptyForm)
+  const resetNewForm = () => {
+    setNewForm(emptyForm)
+    setNewStatus(defaultStatus)
+  }
 
   const openEdit = (row: RecordItem) => {
     const next: Record<string, string> = {}
@@ -99,7 +104,7 @@ const AdminSimpleManager = ({
     const item: RecordItem = {
       id: nextId,
       createdAt: new Date().toISOString(),
-      status: defaultStatus,
+      status: newStatus,
       ...newForm,
     }
 
@@ -177,6 +182,13 @@ const AdminSimpleManager = ({
                 {String(row[field.key] || '-')}
               </span>
             )
+          : field.type === 'file'
+          ? (row: RecordItem) =>
+              row[field.key] ? (
+                <span className="text-emerald-300 text-sm">Image uploaded</span>
+              ) : (
+                <span className="text-slate-500 text-sm">No image</span>
+              )
           : undefined,
     })),
     { key: 'status', label: 'Status' },
@@ -221,6 +233,45 @@ const AdminSimpleManager = ({
       )
     }
 
+    if (field.type === 'file') {
+      return (
+        <div className="space-y-3">
+          <input
+            type="file"
+            accept={field.accept || 'image/*'}
+            onChange={(event) => {
+              const file = event.target.files?.[0]
+              if (!file) return
+
+              const reader = new FileReader()
+              reader.onload = () => {
+                const result = typeof reader.result === 'string' ? reader.result : ''
+                setValue(result)
+              }
+              reader.readAsDataURL(file)
+            }}
+            className="w-full px-4 py-3 bg-slate-800 border border-white/10 rounded-xl text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-600 file:text-white file:font-medium hover:file:bg-blue-500"
+          />
+          {value ? (
+            <div className="space-y-2">
+              <img
+                src={value}
+                alt={`${field.label} preview`}
+                className="w-full max-h-52 object-cover rounded-xl border border-white/10"
+              />
+              <button
+                type="button"
+                onClick={() => setValue('')}
+                className="px-3 py-1.5 text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition-colors"
+              >
+                Remove Image
+              </button>
+            </div>
+          ) : null}
+        </div>
+      )
+    }
+
     return (
       <input
         type={field.type || 'text'}
@@ -248,7 +299,10 @@ const AdminSimpleManager = ({
             <span className="text-sm">Export</span>
           </button>
           <button
-            onClick={() => setIsAddOpen(true)}
+            onClick={() => {
+              resetNewForm()
+              setIsAddOpen(true)
+            }}
             className="flex items-center space-x-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-blue-500/30 transition-all"
           >
             <Plus size={18} />
@@ -278,11 +332,15 @@ const AdminSimpleManager = ({
           <div>
             <label className="block text-slate-300 font-medium mb-2">Status</label>
             <select
-              value={defaultStatus}
-              disabled
-              className="w-full px-4 py-3 bg-slate-800 border border-white/10 rounded-xl text-slate-400"
+              value={newStatus}
+              onChange={(event) => setNewStatus(event.target.value)}
+              className="w-full px-4 py-3 bg-slate-800 border border-white/10 rounded-xl text-white focus:outline-none focus:border-blue-500 transition-all"
             >
-              <option>{defaultStatus}</option>
+              {statusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
             </select>
           </div>
           <div className="flex justify-end gap-3 pt-2">
@@ -366,7 +424,17 @@ const AdminSimpleManager = ({
           {fields.map((field) => (
             <div key={field.key} className="grid grid-cols-3 gap-4">
               <div className="text-slate-400 text-sm">{field.label}</div>
-              <div className="col-span-2 text-white break-words">{String(selectedRecord?.[field.key] || '-')}</div>
+              <div className="col-span-2 text-white break-words">
+                {field.type === 'file' && selectedRecord?.[field.key] ? (
+                  <img
+                    src={String(selectedRecord[field.key])}
+                    alt={`${field.label} preview`}
+                    className="w-full max-h-64 object-cover rounded-xl border border-white/10"
+                  />
+                ) : (
+                  String(selectedRecord?.[field.key] || '-')
+                )}
+              </div>
             </div>
           ))}
           <div className="grid grid-cols-3 gap-4">
