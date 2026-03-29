@@ -22,7 +22,8 @@ interface BlogPost {
 
 const Blog = () => {
   const localPosts = useLocalStorageValue<BlogPost[]>('admin-blog', [])
-  const [posts, setPosts] = useState<BlogPost[]>(localPosts)
+  const [posts, setPosts] = useState<BlogPost[]>([])
+  const [isLoadingPosts, setIsLoadingPosts] = useState(true)
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null)
   const blogHeroTitle = useLocalStorageValue('admin-settings-blog-hero-title', 'Latest Blog Posts')
   const blogHeroDescription = useLocalStorageValue(
@@ -41,9 +42,16 @@ const Blog = () => {
         if (!response.ok) throw new Error('Failed to load blog posts')
 
         const apiPosts = (await response.json()) as BlogPost[]
-        setPosts(apiPosts)
+        // Keep local posts if API returns an empty list but local data exists.
+        if (apiPosts.length > 0 || localPosts.length === 0) {
+          setPosts(apiPosts)
+        } else {
+          setPosts(localPosts)
+        }
       } catch {
         setPosts(localPosts)
+      } finally {
+        setIsLoadingPosts(false)
       }
     }
 
@@ -85,7 +93,11 @@ const Blog = () => {
       </section>
 
       <Section variant="light">
-        {visiblePosts.length ? (
+        {isLoadingPosts ? (
+          <div className="text-center py-16">
+            <p className="text-slate-400 text-lg">Loading blog posts...</p>
+          </div>
+        ) : visiblePosts.length ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {visiblePosts.map((post, index) => (
               <motion.article
