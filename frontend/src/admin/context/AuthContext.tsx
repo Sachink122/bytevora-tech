@@ -19,7 +19,7 @@ interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 const AUTH_TOKEN_KEY = 'agency_auth_token'
 const AUTH_USER_KEY = 'agency_user'
 const AUTH_EXPIRED_KEY = 'agency_auth_expired'

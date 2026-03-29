@@ -5,7 +5,7 @@ import Button from '../components/Button'
 import Section from '../components/Section'
 import { useLocalStorageValue } from '../hooks/useLocalStorageValue'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
 interface BlogPost {
   id: number
