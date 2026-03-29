@@ -18,6 +18,7 @@ const REFRESH_SECRET = process.env.AUTH_REFRESH_SECRET || `${JWT_SECRET}-refresh
 const TOKEN_EXPIRY = process.env.AUTH_TOKEN_EXPIRY || '8h'
 const REFRESH_EXPIRY = process.env.AUTH_REFRESH_EXPIRY || '7d'
 const REFRESH_COOKIE_NAME = process.env.AUTH_REFRESH_COOKIE_NAME || 'agency_refresh_token'
+const ACCESS_COOKIE_NAME = process.env.AUTH_ACCESS_COOKIE_NAME || 'agency_access_token'
 const COOKIE_SECURE = process.env.AUTH_COOKIE_SECURE === 'true'
 const ADMIN_EMAIL = process.env.AUTH_ADMIN_EMAIL || 'bytevora1tech@gmail.com'
 const LEGACY_ADMIN_EMAIL = process.env.AUTH_LEGACY_ADMIN_EMAIL || 'admin@bytevora.in'
@@ -104,12 +105,31 @@ function setRefreshCookie(res, refreshToken) {
   })
 }
 
+function setAccessCookie(res, accessToken) {
+  res.cookie(ACCESS_COOKIE_NAME, accessToken, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: COOKIE_SECURE,
+    path: '/api',
+    maxAge: 8 * 60 * 60 * 1000,
+  })
+}
+
 function clearRefreshCookie(res) {
   res.clearCookie(REFRESH_COOKIE_NAME, {
     httpOnly: true,
     sameSite: 'lax',
     secure: COOKIE_SECURE,
     path: '/api/auth',
+  })
+}
+
+function clearAccessCookie(res) {
+  res.clearCookie(ACCESS_COOKIE_NAME, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: COOKIE_SECURE,
+    path: '/api',
   })
 }
 
@@ -124,11 +144,17 @@ function sanitizeUser(user) {
 
 function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  const bearerToken = authHeader && authHeader.startsWith('Bearer ')
+    ? authHeader.slice('Bearer '.length)
+    : ''
+  const cookieToken = String(req.cookies?.[ACCESS_COOKIE_NAME] || '')
+  const bodyToken = String(req.body?.accessToken || '')
+  const queryToken = String(req.query?.accessToken || '')
+  const token = bearerToken || cookieToken || bodyToken || queryToken
+
+  if (!token) {
     return res.status(401).json({ message: 'Missing authorization token' })
   }
-
-  const token = authHeader.slice('Bearer '.length)
 
   try {
     const payload = jwt.verify(token, JWT_SECRET)
@@ -179,6 +205,7 @@ app.post('/api/auth/login', async (req, res) => {
     const refreshToken = createRefreshToken(targetUser)
     currentRefreshToken = refreshToken
     setRefreshCookie(res, refreshToken)
+    setAccessCookie(res, accessToken)
     return res.json({ accessToken, user: sanitizeUser(targetUser) })
   } catch (error) {
     const isEmailMatch = isAdminEmail(email)
@@ -192,6 +219,7 @@ app.post('/api/auth/login', async (req, res) => {
       const refreshToken = createRefreshToken(fallbackAdmin)
       currentRefreshToken = refreshToken
       setRefreshCookie(res, refreshToken)
+      setAccessCookie(res, accessToken)
       return res.json({ accessToken, user: sanitizeUser(fallbackAdmin) })
     }
     return res.status(401).json({ message: 'Invalid credentials' })
@@ -215,6 +243,7 @@ app.post('/api/auth/refresh', (req, res) => {
     const nextRefreshToken = createRefreshToken(adminUser)
     currentRefreshToken = nextRefreshToken
     setRefreshCookie(res, nextRefreshToken)
+    setAccessCookie(res, nextAccessToken)
 
     return res.json({ accessToken: nextAccessToken, user: sanitizeUser(adminUser) })
   } catch {
@@ -227,6 +256,7 @@ app.post('/api/auth/refresh', (req, res) => {
 app.post('/api/auth/logout', (_req, res) => {
   currentRefreshToken = null
   clearRefreshCookie(res)
+  clearAccessCookie(res)
   return res.status(204).send()
 })
 
