@@ -44,6 +44,8 @@ const adminUser = {
   passwordHash: bcrypt.hashSync(ADMIN_PASSWORD, 10),
 }
 
+let currentRefreshToken = null
+
 app.use(helmet({
   contentSecurityPolicy: false,
 }))

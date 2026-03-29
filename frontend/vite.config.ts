@@ -16,5 +16,13 @@ export default defineConfig(async () => {
       // Prefer source TS/TSX files over stale transpiled JS siblings.
       extensions: ['.tsx', '.ts', '.jsx', '.js', '.json'],
     },
+    server: {
+      proxy: {
+        '/api': {
+          target: 'http://localhost:4000',
+          changeOrigin: true,
+        },
+      },
+    },
   };
 })
