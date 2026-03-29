@@ -19,7 +19,8 @@ const TOKEN_EXPIRY = process.env.AUTH_TOKEN_EXPIRY || '8h'
 const REFRESH_EXPIRY = process.env.AUTH_REFRESH_EXPIRY || '7d'
 const REFRESH_COOKIE_NAME = process.env.AUTH_REFRESH_COOKIE_NAME || 'agency_refresh_token'
 const COOKIE_SECURE = process.env.AUTH_COOKIE_SECURE === 'true'
-const ADMIN_EMAIL = process.env.AUTH_ADMIN_EMAIL || 'admin@bytevora.in'
+const ADMIN_EMAIL = process.env.AUTH_ADMIN_EMAIL || 'bytevora1tech@gmail.com'
+const LEGACY_ADMIN_EMAIL = process.env.AUTH_LEGACY_ADMIN_EMAIL || 'admin@bytevora.in'
 const ADMIN_PASSWORD = process.env.AUTH_ADMIN_PASSWORD || 'ChangeMe123!'
 const ADMIN_NAME = process.env.AUTH_ADMIN_NAME || 'Admin User'
 const ADMIN_ROLE = process.env.AUTH_ADMIN_ROLE || 'Admin'
@@ -46,6 +47,12 @@ const adminUser = {
 
 let currentRefreshToken = null
 let blogPostsFallback = []
+
+const adminEmails = [ADMIN_EMAIL, LEGACY_ADMIN_EMAIL]
+  .map((email) => String(email || '').trim().toLowerCase())
+  .filter(Boolean)
+
+const isAdminEmail = (email) => adminEmails.includes(String(email || '').trim().toLowerCase())
 
 app.use(helmet({
   contentSecurityPolicy: false,
@@ -154,9 +161,14 @@ app.post('/api/auth/login', async (req, res) => {
       targetUser = dbUser
       isPasswordMatch = bcrypt.compareSync(password, dbUser.passwordHash)
     } else {
-      const isEmailMatch = email === adminUser.email.toLowerCase()
+      const isEmailMatch = isAdminEmail(email)
       isPasswordMatch = bcrypt.compareSync(password, adminUser.passwordHash)
-      if (isEmailMatch && isPasswordMatch) targetUser = adminUser
+      if (isEmailMatch && isPasswordMatch) {
+        targetUser = {
+          ...adminUser,
+          email,
+        }
+      }
     }
 
     if (!targetUser || !isPasswordMatch) {
@@ -169,14 +181,18 @@ app.post('/api/auth/login', async (req, res) => {
     setRefreshCookie(res, refreshToken)
     return res.json({ accessToken, user: sanitizeUser(targetUser) })
   } catch (error) {
-    const isEmailMatch = email === adminUser.email.toLowerCase()
+    const isEmailMatch = isAdminEmail(email)
     const isPwMatch = bcrypt.compareSync(password, adminUser.passwordHash)
     if (isEmailMatch && isPwMatch) {
-      const accessToken = createAccessToken(adminUser)
-      const refreshToken = createRefreshToken(adminUser)
+      const fallbackAdmin = {
+        ...adminUser,
+        email,
+      }
+      const accessToken = createAccessToken(fallbackAdmin)
+      const refreshToken = createRefreshToken(fallbackAdmin)
       currentRefreshToken = refreshToken
       setRefreshCookie(res, refreshToken)
-      return res.json({ accessToken, user: sanitizeUser(adminUser) })
+      return res.json({ accessToken, user: sanitizeUser(fallbackAdmin) })
     }
     return res.status(401).json({ message: 'Invalid credentials' })
   }
@@ -215,11 +231,16 @@ app.post('/api/auth/logout', (_req, res) => {
 })
 
 app.get('/api/auth/me', requireAuth, (req, res) => {
-  if (req.auth?.email?.toLowerCase() !== adminUser.email.toLowerCase()) {
+  if (!isAdminEmail(req.auth?.email)) {
     return res.status(401).json({ message: 'User no longer available' })
   }
 
-  return res.json({ user: sanitizeUser(adminUser) })
+  return res.json({
+    user: sanitizeUser({
+      ...adminUser,
+      email: String(req.auth?.email || adminUser.email),
+    }),
+  })
 })
 
 app.post('/api/leads', async (req, res) => {
