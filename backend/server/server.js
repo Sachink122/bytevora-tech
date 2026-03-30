@@ -165,8 +165,15 @@ function requireAuth(req, res, next) {
   }
 }
 
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok' })
+
+app.get('/api/health', async (_req, res) => {
+  try {
+    // Try a simple DB query (select 1 from users or blogPosts)
+    await db.select().from(users).limit(1)
+    res.json({ status: 'ok', db: 'ok' })
+  } catch (error) {
+    res.json({ status: 'ok', db: 'error', error: error.message })
+  }
 })
 
 app.post('/api/auth/login', async (req, res) => {
