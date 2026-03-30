@@ -3,48 +3,47 @@ import { Award, Target, Users, Zap, Shield, Heart, Rocket, ArrowRight } from 'lu
 import Button from '../components/Button'
 import Section from '../components/Section'
 import { useLocalStorageValue } from '../hooks/useLocalStorageValue'
-import { useEffect, useState } from 'react'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
-
-const defaultContent = {
-  aboutHeroTitle: 'About Bytevora Tech',
-  aboutHeroDescription: 'Bytevora Tech is a digital partner for modern businesses, focused on building reliable websites, efficient systems, and measurable business growth.',
-  aboutStoryParagraph1: 'Bytevora Tech was founded with a clear mission: make modern digital solutions practical and accessible for growing businesses.',
-  aboutStoryParagraph2: 'We combine web development, UI/UX design, automation thinking, and business-first strategy to deliver high-impact outcomes.',
-  aboutStoryParagraph3: 'From Panvel, Maharashtra, we work with clients to build, manage, and scale digital operations with clarity and speed.',
-  aboutMission: 'To help businesses build strong digital foundations, manage operations efficiently, and grow sustainably.',
-  aboutVision: 'To be a trusted technology growth partner for businesses across India and beyond.',
-  aboutCtaDescription: 'Tell us your business goals and Bytevora Tech will craft the right digital plan to execute them.',
-}
 
 const About = () => {
   const agencyName = useLocalStorageValue('admin-settings-agency-name', 'Bytevora Tech')
+  const aboutHeroTitle = useLocalStorageValue('admin-settings-about-hero-title', 'About Bytevora Tech')
+  const aboutHeroDescription = useLocalStorageValue(
+    'admin-settings-about-hero-description',
+    'Bytevora Tech is a digital partner for modern businesses, focused on building reliable websites, efficient systems, and measurable business growth.'
+  )
+  const aboutStoryParagraph1 = useLocalStorageValue(
+    'admin-settings-about-story-1',
+    'Bytevora Tech was founded with a clear mission: make modern digital solutions practical and accessible for growing businesses.'
+  )
+  const aboutStoryParagraph2 = useLocalStorageValue(
+    'admin-settings-about-story-2',
+    'We combine web development, UI/UX design, automation thinking, and business-first strategy to deliver high-impact outcomes.'
+  )
+  const aboutStoryParagraph3 = useLocalStorageValue(
+    'admin-settings-about-story-3',
+    'From Panvel, Maharashtra, we work with clients to build, manage, and scale digital operations with clarity and speed.'
+  )
+  const aboutMission = useLocalStorageValue(
+    'admin-settings-about-mission',
+    'To help businesses build strong digital foundations, manage operations efficiently, and grow sustainably.'
+  )
+  const aboutVision = useLocalStorageValue(
+    'admin-settings-about-vision',
+    'To be a trusted technology growth partner for businesses across India and beyond.'
+  )
+  const aboutCtaDescription = useLocalStorageValue(
+    'admin-settings-about-cta',
+    'Tell us your business goals and Bytevora Tech will craft the right digital plan to execute them.'
+  )
+
   const projectCount = useLocalStorageValue<Array<{ id: number }>>('admin-projects', []).length
   const clientCount = useLocalStorageValue<Array<{ id: number }>>('admin-clients', []).length
   const leadCount = useLocalStorageValue<Array<{ id: number }>>('admin-leads', []).length
   const testimonialCount = useLocalStorageValue<Array<{ id: number }>>('admin-testimonials', []).length
 
-  const [content, setContent] = useState(defaultContent)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchContent = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/content/about`)
-        if (response.ok) {
-          const data = await response.json()
-          if (data.content) setContent(JSON.parse(data.content))
-        }
-      } catch {}
-      setLoading(false)
-    }
-    fetchContent()
-  }, [])
-
   const values = [
     {
-      icon: <Award className="text-blue-500" size={32} />, 
+      icon: <Award className="text-blue-500" size={32} />,
       title: 'Quality',
       description:
         'We deliver excellence in every project, ensuring the highest standards of design and development.',
@@ -100,8 +99,6 @@ const About = () => {
     },
   ]
 
-  if (loading) return <div className="p-6 text-slate-300">Loading About content...</div>
-
   return (
     <>
       {/* Hero Section */}
@@ -119,13 +116,13 @@ const About = () => {
             className="max-w-4xl text-center"
           >
             <h1 className="text-5xl lg:text-7xl font-bold mb-6">
-              {content.aboutHeroTitle.split(' ')[0] || 'About'}{' '}
+              {aboutHeroTitle.split(' ')[0] || 'About'}{' '}
               <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent">
-                {content.aboutHeroTitle.split(' ').slice(1).join(' ') || 'Our Agency'}
+                {aboutHeroTitle.split(' ').slice(1).join(' ') || 'Our Agency'}
               </span>
             </h1>
             <p className="text-xl text-slate-300 leading-relaxed mb-8">
-              {content.aboutHeroDescription}
+              {aboutHeroDescription}
             </p>
             <Button href="/contact" size="lg">
               Work With Us
@@ -171,13 +168,13 @@ const About = () => {
             </h2>
             <div className="space-y-6 text-slate-300 leading-relaxed">
               <p>
-                {content.aboutStoryParagraph1}
+                {aboutStoryParagraph1}
               </p>
               <p>
-                {content.aboutStoryParagraph2}
+                {aboutStoryParagraph2}
               </p>
               <p>
-                {content.aboutStoryParagraph3}
+                {aboutStoryParagraph3}
               </p>
             </div>
           </motion.div>
@@ -198,7 +195,7 @@ const About = () => {
                   <div>
                     <h3 className="text-xl font-semibold mb-2">Our Mission</h3>
                     <p className="text-slate-400">
-                      {content.aboutMission}
+                      {aboutMission}
                     </p>
                   </div>
                 </div>
@@ -210,7 +207,7 @@ const About = () => {
                   <div>
                     <h3 className="text-xl font-semibold mb-2">Our Vision</h3>
                     <p className="text-slate-400">
-                      {content.aboutVision}
+                      {aboutVision}
                     </p>
                   </div>
                 </div>
@@ -346,7 +343,7 @@ const About = () => {
             ?
           </h2>
           <p className="text-xl text-slate-400 mb-8">
-            {content.aboutCtaDescription}
+            {aboutCtaDescription}
           </p>
           <Button href="/contact" size="lg">
             Start Your Project

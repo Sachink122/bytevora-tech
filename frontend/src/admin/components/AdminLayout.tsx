@@ -178,14 +178,12 @@ const AdminLayout = () => {
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
-    { icon: PenTool, label: 'Home', path: '/admin/home' },
-    { icon: PenTool, label: 'About', path: '/admin/about' },
-    { icon: PenTool, label: 'Services', path: '/admin/services' },
     { icon: Users, label: 'Team', path: '/admin/team' },
     { icon: Users, label: 'Leads', path: '/admin/leads' },
     { icon: Briefcase, label: 'Clients', path: '/admin/clients' },
     { icon: FolderKanban, label: 'Projects', path: '/admin/projects' },
     { icon: Image, label: 'Portfolio', path: '/admin/portfolio' },
+    { icon: PenTool, label: 'Services', path: '/admin/services' },
     { icon: DollarSign, label: 'Pricing', path: '/admin/pricing' },
     { icon: Star, label: 'Testimonials', path: '/admin/testimonials' },
     { icon: MessageSquare, label: 'Messages', path: '/admin/messages' },

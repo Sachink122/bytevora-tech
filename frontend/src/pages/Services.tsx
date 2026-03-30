@@ -3,7 +3,6 @@ import { CheckCircle2, ArrowRight, Clock, TrendingUp, Shield, Zap } from 'lucide
 import Button from '../components/Button'
 import Section from '../components/Section'
 import { useLocalStorageValue } from '../hooks/useLocalStorageValue'
-import { useEffect, useState } from 'react'
 
 interface AdminServiceRecord {
   id: number
@@ -204,26 +203,11 @@ const Services = () => {
     },
   ]
 
-  const defaultContent = {
-    servicesTitle: 'Our Services',
-    servicesDescription: 'Comprehensive digital solutions tailored to help your business thrive in the modern marketplace. From stunning websites to powerful custom systems.',
-  }
-  const [content, setContent] = useState(defaultContent)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchContent = async () => {
-      try {
-        const response = await fetch((import.meta.env.VITE_API_BASE_URL || '') + '/api/content/services')
-        if (response.ok) {
-          const data = await response.json()
-          if (data.content) setContent(JSON.parse(data.content))
-        }
-      } catch {}
-      setLoading(false)
-    }
-    fetchContent()
-  }, [])
+  const servicesHeroTitle = useLocalStorageValue('admin-settings-services-hero-title', 'Our Services')
+  const servicesHeroDescription = useLocalStorageValue(
+    'admin-settings-services-hero-description',
+    'Comprehensive digital solutions tailored to help your business thrive in the modern marketplace. From stunning websites to powerful custom systems.'
+  )
   const adminServices = useLocalStorageValue<AdminServiceRecord[]>('admin-services', [])
   const servicesJson = useLocalStorageValue('admin-settings-services-json', '')
   const servicesFromSettings = parseJsonWithFallback<ServiceViewModel[]>(servicesJson, [])
@@ -255,7 +239,7 @@ const Services = () => {
       ? servicesFromSettings
       : defaultServices
 
-  const heroWords = content.servicesTitle.trim().split(/\s+/).filter(Boolean)
+  const heroWords = servicesHeroTitle.trim().split(/\s+/).filter(Boolean)
   const heroLead = heroWords[0] || 'Our'
   const heroAccent = heroWords.slice(1).join(' ') || 'Services'
 
@@ -309,7 +293,7 @@ const Services = () => {
               </span>
             </h1>
             <p className="text-xl text-slate-300 leading-relaxed mb-8">
-              {content.servicesDescription}
+              {servicesHeroDescription}
             </p>
             <Button href="/contact" size="lg">
               Get a Quote

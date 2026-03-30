@@ -1,20 +1,3 @@
-// Portfolio Items Table
-export const portfolioItems = pgTable('portfolio_items', {
-  id: serial('id').primaryKey(),
-  title: text('title').notNull(),
-  category: text('category').notNull(),
-  image: text('image'),
-  projectUrl: text('project_url'),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-})
-// Site-wide editable content (Home, About, etc.)
-export const siteContent = pgTable('site_content', {
-  id: serial('id').primaryKey(),
-  section: varchar('section', { length: 50 }).notNull().unique(),
-  content: text('content').notNull(), // Store as JSON string or plain text
-  updatedAt: timestamp('updated_at').defaultNow(),
-});
 import { pgTable, serial, text, timestamp, varchar } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {

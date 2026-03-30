@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   Globe,
@@ -110,8 +110,6 @@ interface MessageRecord {
   phone?: string
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
-
 const Home = () => {
   const [contactFirstName, setContactFirstName] = useState('')
   const [contactLastName, setContactLastName] = useState('')
@@ -122,131 +120,36 @@ const Home = () => {
   const [contactProjectDetails, setContactProjectDetails] = useState('')
   const [contactSubmitted, setContactSubmitted] = useState(false)
 
+  const agencyName = useLocalStorageValue('admin-settings-agency-name', 'Bytevora Tech')
+  const tagline = useLocalStorageValue('admin-settings-tagline', 'Build. Manage. Grow.')
+  const agencyDescription = useLocalStorageValue(
+    'admin-settings-description',
+    'Bytevora Tech helps businesses build high-performing websites, manage operations with smart systems, and grow through practical digital strategies.'
+  )
+  const homeHeroPrefix = useLocalStorageValue('admin-settings-home-hero-prefix', 'Build and Scale')
+  const homeHeroHighlight = useLocalStorageValue('admin-settings-home-hero-highlight', 'Digital Presence')
+  const homeHeroSuffix = useLocalStorageValue('admin-settings-home-hero-suffix', 'with')
+  const homePrimaryCtaText = useLocalStorageValue('admin-settings-home-primary-cta-text', 'Join Us')
+  const homeSecondaryCtaText = useLocalStorageValue('admin-settings-home-secondary-cta-text', 'View Portfolio')
+  const homeContactTitle = useLocalStorageValue('admin-settings-home-contact-title', "Let's Start a Conversation")
+  const homeContactDescription = useLocalStorageValue(
+    'admin-settings-home-contact-description',
+    "Ready to transform your digital presence? Get in touch and let's discuss your project."
+  )
+  const businessEmail = useLocalStorageValue('admin-settings-business-email', 'bytevora1tech@gmail.com')
+  const phoneNumber = useLocalStorageValue('admin-settings-phone', '8668398960')
+  const whatsAppNumber = useLocalStorageValue('admin-settings-whatsapp', '8668398960')
+  const adminServices = useLocalStorageValue<AdminServiceRecord[]>('admin-services', [])
+  const adminPricing = useLocalStorageValue<AdminPricingRecord[]>('admin-pricing', [])
+  const adminBlog = useLocalStorageValue<AdminBlogRecord[]>('admin-blog', [])
+  const adminSupport = useLocalStorageValue<AdminSupportRecord[]>('admin-support', [])
+  const adminClients = useLocalStorageValue<Array<{ id: number; project?: string; projectCompleted?: boolean }>>('admin-clients', [])
+  const portfolioItems = useLocalStorageValue<PublicPortfolioItem[]>('admin-portfolio-items', [])
+  const testimonialItems = useLocalStorageValue<PublicTestimonialItem[]>('admin-testimonials', [])
 
-  // Home content state
-  const [homeContent, setHomeContent] = useState<any>(null)
-  const [isLoadingContent, setIsLoadingContent] = useState(true)
-  // API-driven state for dynamic homepage sections
-  const [portfolioItems, setPortfolioItems] = useState<PublicPortfolioItem[]>([])
-  const [testimonialItems, setTestimonialItems] = useState<PublicTestimonialItem[]>([])
-  const [adminServices, setAdminServices] = useState<AdminServiceRecord[]>([])
-  const [adminPricing, setAdminPricing] = useState<AdminPricingRecord[]>([])
-  const [adminClients, setAdminClients] = useState<any[]>([])
-  const [adminSupport, setAdminSupport] = useState<AdminSupportRecord[]>([])
-
-  // Fetch homepage content and all dynamic sections from API
-  useEffect(() => {
-    const fetchAll = async () => {
-      try {
-        // Home content
-        const contentRes = await fetch(`${API_BASE_URL}/api/content/home`)
-        if (contentRes.ok) {
-          const data = await contentRes.json()
-          if (data.content) setHomeContent(JSON.parse(data.content))
-        }
-      } catch {}
-      setIsLoadingContent(false)
-
-      // Portfolio
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/portfolio`)
-        if (res.ok) {
-          const data = await res.json()
-          setPortfolioItems(data.items || [])
-        }
-      } catch {}
-
-      // Testimonials (if you have an endpoint, otherwise fallback)
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/testimonials`)
-        if (res.ok) {
-          const data = await res.json()
-          setTestimonialItems(data.items || [])
-        }
-      } catch {}
-
-      // Services
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/services`)
-        if (res.ok) {
-          const data = await res.json()
-          setAdminServices(data.items || [])
-        }
-      } catch {}
-
-      // Pricing
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/pricing`)
-        if (res.ok) {
-          const data = await res.json()
-          setAdminPricing(data.items || [])
-        }
-      } catch {}
-
-      // Clients
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/clients`)
-        if (res.ok) {
-          const data = await res.json()
-          setAdminClients(data.items || [])
-        }
-      } catch {}
-
-      // Support
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/support`)
-        if (res.ok) {
-          const data = await res.json()
-          setAdminSupport(data.items || [])
-        }
-      } catch {}
-    }
-    fetchAll()
-  }, [])
-
-  useEffect(() => {
-    const fetchContent = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/content/home`)
-        if (response.ok) {
-          const data = await response.json()
-          if (data.content) {
-            setHomeContent(JSON.parse(data.content))
-            setIsLoadingContent(false)
-            return
-          }
-        }
-      } catch {}
-      // Fallback to localStorage if API fails or no content
-      try {
-        const local = localStorage.getItem('admin-home')
-        if (local) setHomeContent(JSON.parse(local))
-      } catch {}
-      setIsLoadingContent(false)
-    }
-    fetchContent()
-  }, [])
-
-  // Example: fallback values if no content
-  const fallback = {
-    agencyName: 'Bytevora Tech',
-    tagline: 'Build. Manage. Grow.',
-    agencyDescription: 'Bytevora Tech helps businesses build high-performing websites, manage operations with smart systems, and grow through practical digital strategies.',
-    homeHeroPrefix: 'Build and Scale',
-    homeHeroHighlight: 'Digital Presence',
-    homeHeroSuffix: 'with',
-    homePrimaryCtaText: 'Join Us',
-    homeSecondaryCtaText: 'View Portfolio',
-    homeContactTitle: "Let's Start a Conversation",
-    homeContactDescription: "Ready to transform your digital presence? Get in touch and let's discuss your project.",
-    businessEmail: 'bytevora1tech@gmail.com',
-    phoneNumber: '8668398960',
-    whatsAppNumber: '8668398960',
-  }
-  const content = homeContent || fallback
-  const normalizedPhone = content.phoneNumber.replace(/[^\d+]/g, '')
-  const normalizedWhatsApp = (content.whatsAppNumber || content.phoneNumber).replace(/[^\d]/g, '')
-  const homeContactTitleWords = (content.homeContactTitle || "Let's Start a Conversation").trim().split(/\s+/).filter(Boolean)
+  const normalizedPhone = phoneNumber.replace(/[^\d+]/g, '')
+  const normalizedWhatsApp = (whatsAppNumber || phoneNumber).replace(/[^\d]/g, '')
+  const homeContactTitleWords = (homeContactTitle || "Let's Start a Conversation").trim().split(/\s+/).filter(Boolean)
   const homeContactTitleLead = homeContactTitleWords.slice(0, -1).join(' ') || "Let's Start a"
   const homeContactTitleAccent = homeContactTitleWords[homeContactTitleWords.length - 1] || 'Conversation'
 
@@ -326,8 +229,7 @@ const Home = () => {
     },
   ]
 
-  // Portfolio section (show up to 6)
-  const portfolio = (portfolioItems || []).slice(0, 6).map((item) => ({
+  const portfolio = portfolioItems.slice(0, 6).map((item) => ({
     title: item.title,
     category: item.category,
     description: `Explore details of ${item.title}.`,
@@ -409,8 +311,7 @@ const Home = () => {
     },
   ]
 
-  // Testimonials section
-  const testimonials = (testimonialItems || []).map((item) => ({
+  const testimonials = testimonialItems.map((item) => ({
     name: item.name,
     role: item.role || item.business || 'Client',
     content: item.content || item.feedback || '',
@@ -444,11 +345,10 @@ const Home = () => {
     },
   ]
 
-  // Active projects and open support tickets
-  const activeProjectCount = (adminClients || []).filter((item) => item.project && !item.projectCompleted).length
-  const openSupportCount = (adminSupport || []).filter((item) => (item.status || '') === 'Open').length
+  const activeProjectCount = adminClients.filter((item) => item.project && !item.projectCompleted).length
+  const openSupportCount = adminSupport.filter((item) => (item.status || '') === 'Open').length
 
-  const serviceOptions = (adminServices && adminServices.length)
+  const serviceOptions = adminServices.length
     ? adminServices
         .filter((item) => (item.status || 'Active') !== 'Archived')
         .map((item) => item.name || item.category || 'Service')
@@ -511,7 +411,7 @@ const Home = () => {
     <Palette className="text-indigo-500" size={32} />,
   ]
 
-  const services = (adminServices && adminServices.length)
+  const services = adminServices.length
     ? adminServices
         .filter((service) => (service.status || 'Active') !== 'Archived')
         .map((service, index) => ({
@@ -523,7 +423,7 @@ const Home = () => {
         }))
     : fallbackServices
 
-  const pricing = (adminPricing && adminPricing.length)
+  const pricing = adminPricing.length
     ? adminPricing
         .filter((plan) => (plan.status || 'Draft') !== 'Archived')
         .map((plan, index) => {
@@ -572,7 +472,7 @@ const Home = () => {
                 className="inline-flex items-center px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full"
               >
                 <Sparkles className="text-blue-400 mr-2" size={18} />
-                <span className="text-blue-300 font-medium">{content.tagline}</span>
+                <span className="text-blue-300 font-medium">{tagline}</span>
               </motion.div>
 
               <motion.h1
@@ -581,11 +481,11 @@ const Home = () => {
                 transition={{ duration: 0.6, delay: 0.3 }}
                 className="text-5xl lg:text-7xl font-bold leading-tight"
               >
-                {content.homeHeroPrefix}{' '}
+                {homeHeroPrefix}{' '}
                 <span className="bg-gradient-to-r from-blue-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent">
-                  {content.homeHeroHighlight}
+                  {homeHeroHighlight}
                 </span>{' '}
-                {content.homeHeroSuffix} {content.agencyName}
+                {homeHeroSuffix} {agencyName}
               </motion.h1>
 
               <motion.p
@@ -594,7 +494,7 @@ const Home = () => {
                 transition={{ duration: 0.6, delay: 0.4 }}
                 className="text-xl text-slate-300 leading-relaxed"
               >
-                {content.agencyDescription}
+                {agencyDescription}
               </motion.p>
 
               <motion.div
@@ -603,8 +503,8 @@ const Home = () => {
                 transition={{ duration: 0.6, delay: 0.5 }}
                 className="flex flex-col sm:flex-row gap-4"
               >
-                <Button href="/contact" size="lg">{content.homePrimaryCtaText || 'Join Us'}</Button>
-                <Button href="/portfolio" variant="secondary" size="lg">{content.homeSecondaryCtaText || 'View Portfolio'}</Button>
+                <Button href="/contact" size="lg">{homePrimaryCtaText || 'Join Us'}</Button>
+                <Button href="/portfolio" variant="secondary" size="lg">{homeSecondaryCtaText || 'View Portfolio'}</Button>
               </motion.div>
 
               <motion.div
@@ -1073,7 +973,7 @@ const Home = () => {
             transition={{ delay: 0.2 }}
             className="text-xl text-slate-400 mb-8"
           >
-            Let's create something amazing together. Contact {content.agencyName || 'our team'} today for a
+            Let's create something amazing together. Contact {agencyName || 'our team'} today for a
             modern digital solution that drives real results.
           </motion.p>
           <motion.div
@@ -1115,7 +1015,7 @@ const Home = () => {
               </span>
             </h2>
             <p className="text-xl text-slate-400 mb-8">
-              {content.homeContactDescription}
+              {homeContactDescription}
             </p>
 
             <div className="space-y-6">
@@ -1126,10 +1026,10 @@ const Home = () => {
                 <div>
                   <div className="text-slate-400 text-sm">Email Us</div>
                   <a
-                    href={content.businessEmail ? `mailto:${content.businessEmail}` : '#'}
+                    href={businessEmail ? `mailto:${businessEmail}` : '#'}
                     className="text-white font-semibold hover:text-blue-400 transition-colors"
                   >
-                    {content.businessEmail || 'bytevora1tech@gmail.com'}
+                    {businessEmail || 'bytevora1tech@gmail.com'}
                   </a>
                 </div>
               </div>
@@ -1144,7 +1044,7 @@ const Home = () => {
                     href={normalizedPhone ? `tel:${normalizedPhone}` : '#'}
                     className="text-white font-semibold hover:text-blue-400 transition-colors"
                   >
-                    {content.phoneNumber || '8668398960'}
+                    {phoneNumber || '8668398960'}
                   </a>
                 </div>
               </div>
@@ -1159,7 +1059,7 @@ const Home = () => {
                     href={normalizedWhatsApp ? `https://wa.me/${normalizedWhatsApp}` : '#'}
                     className="text-white font-semibold hover:text-green-400 transition-colors"
                   >
-                    {content.whatsAppNumber || content.phoneNumber || '8668398960'}
+                    {whatsAppNumber || phoneNumber || '8668398960'}
                   </a>
                 </div>
               </div>
