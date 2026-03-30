@@ -3,16 +3,14 @@ import { useEffect, useState } from 'react'
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
 const defaultContent = {
-  teamTitle: 'Meet Our Team',
-  teamDescription: 'A passionate group of experts dedicated to your success.',
-  member1: 'Sachi Sharma – Founder & Lead Developer',
-  member2: 'Priya Patel – UI/UX Designer',
-  member3: 'Rahul Mehta – Automation Specialist',
-  member4: 'Ayesha Khan – Project Manager',
-  member5: 'Vikram Singh – Marketing Strategist',
+  aboutTitle: 'About Bytevora Tech',
+  aboutDescription: 'We are a passionate team helping businesses grow with modern web solutions.',
+  aboutMission: 'Empower businesses with digital transformation.',
+  aboutVision: 'Be the most trusted web partner for SMBs.',
+  aboutValues: 'Integrity, Innovation, Customer Success',
 }
 
-export default function AdminTeam() {
+export default function AdminAbout() {
   const [content, setContent] = useState(defaultContent)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -22,7 +20,7 @@ export default function AdminTeam() {
     const fetchContent = async () => {
       try {
         const token = localStorage.getItem('agency_auth_token') || ''
-        const response = await fetch(`${API_BASE_URL}/api/admin/content/team`, {
+        const response = await fetch(`${API_BASE_URL}/api/admin/content/about`, {
           headers: { Authorization: `Bearer ${token}` },
           credentials: 'include',
         })
@@ -47,7 +45,7 @@ export default function AdminTeam() {
     setMessage('')
     try {
       const token = localStorage.getItem('agency_auth_token') || ''
-      const response = await fetch(`${API_BASE_URL}/api/admin/content/team`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/content/about`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -57,7 +55,7 @@ export default function AdminTeam() {
         body: JSON.stringify({ content: JSON.stringify(content) }),
       })
       if (response.ok) {
-        setMessage('Team content saved and published!')
+        setMessage('About content saved and published!')
       } else {
         setMessage('Failed to save. Check your connection or login.')
       }
@@ -67,11 +65,11 @@ export default function AdminTeam() {
     setSaving(false)
   }
 
-  if (loading) return <div className="p-6 text-slate-300">Loading Team content...</div>
+  if (loading) return <div className="p-6 text-slate-300">Loading About content...</div>
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 p-6">
-      <h2 className="text-xl font-semibold text-white mb-2">Edit Team Page Content</h2>
+      <h2 className="text-xl font-semibold text-white mb-2">Edit About Page Content</h2>
       <div className="space-y-4">
         {Object.keys(defaultContent).map((key) => (
           <div key={key}>

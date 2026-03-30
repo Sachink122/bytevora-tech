@@ -1,9 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Plus, MoreVertical, ExternalLink, Edit, Trash2, Image as ImageIcon } from 'lucide-react'
 import Modal from '../components/Modal'
 import ConfirmModal from '../components/ConfirmModal'
 import Toast, { type ToastType } from '../components/Toast'
-import { useLocalStorageState } from '../hooks/useLocalStorageState'
 
 interface PortfolioItem {
   id: number
@@ -13,9 +12,12 @@ interface PortfolioItem {
   projectUrl: string
 }
 
-const AdminPortfolio = () => {
-  const [items, setItems] = useLocalStorageState<PortfolioItem[]>('admin-portfolio-items', [])
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+
+const AdminPortfolio = () => {
+  const [items, setItems] = useState<PortfolioItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState<number | null>(null)
@@ -29,26 +31,119 @@ const AdminPortfolio = () => {
   })
   const [toast, setToast] = useState<{ type: ToastType; message: string } | null>(null)
 
-  const handleAddItem = () => {
+  // Fetch all portfolio items (admin)
+  useEffect(() => {
+    const fetchItems = async () => {
+      setLoading(true)
+      try {
+        const token = localStorage.getItem('agency_auth_token') || ''
+        const res = await fetch(`${API_BASE_URL}/api/admin/portfolio`, {
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setItems(data.items || [])
+        }
+      } catch {}
+      setLoading(false)
+    }
+    fetchItems()
+  }, [])
+
+  // Add new portfolio item
+  const handleAddItem = async () => {
     if (!newItem.title || !newItem.image || !newItem.projectUrl) {
       setToast({ type: 'warning', message: 'Please fill title, image, and project URL.' })
       return
     }
-    const next: PortfolioItem = {
-      ...newItem,
-      id: items.length ? Math.max(...items.map((x) => x.id)) + 1 : 1,
+    try {
+      const token = localStorage.getItem('agency_auth_token') || ''
+      const res = await fetch(`${API_BASE_URL}/api/admin/portfolio`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify(newItem),
+      })
+      if (res.ok) {
+        const { item } = await res.json()
+        setItems((prev) => [item, ...prev])
+        setIsAddOpen(false)
+        setNewItem({ title: '', category: 'Business Website', image: '', projectUrl: '' })
+        setToast({ type: 'success', message: 'Portfolio item added.' })
+      } else {
+        setToast({ type: 'error', message: 'Failed to add item.' })
+      }
+    } catch {
+      setToast({ type: 'error', message: 'Failed to add item.' })
     }
-    setItems((prev) => [next, ...prev])
-    setIsAddOpen(false)
-    setNewItem({ title: '', category: 'Business Website', image: '', projectUrl: '' })
-    setToast({ type: 'success', message: 'Portfolio item added.' })
   }
 
-  const handleOpenProject = (item: PortfolioItem) => {
-    window.open(item.projectUrl, '_blank', 'noopener,noreferrer')
-    setToast({ type: 'info', message: 'Opened project in a new tab.' })
+  // Edit portfolio item
+  const handleEdit = (item: PortfolioItem) => {
+    setEditingItem(item)
+    setIsEditOpen(true)
+    setMenuOpen(null)
   }
 
+  // Save edited item
+  const handleSaveEdit = async () => {
+    if (!editingItem) return
+    try {
+      const token = localStorage.getItem('agency_auth_token') || ''
+      const res = await fetch(`${API_BASE_URL}/api/admin/portfolio/${editingItem.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify(editingItem),
+      })
+      if (res.ok) {
+        setItems((prev) => prev.map((item) => (item.id === editingItem.id ? editingItem : item)))
+        setIsEditOpen(false)
+        setEditingItem(null)
+        setToast({ type: 'success', message: 'Portfolio item updated.' })
+      } else {
+        setToast({ type: 'error', message: 'Failed to update item.' })
+      }
+    } catch {
+      setToast({ type: 'error', message: 'Failed to update item.' })
+    }
+  }
+
+  // Delete portfolio item
+  const handleDelete = (item: PortfolioItem) => {
+    setItemToDelete(item)
+  }
+
+  const confirmDelete = async () => {
+    if (!itemToDelete) return
+    try {
+      const token = localStorage.getItem('agency_auth_token') || ''
+      const res = await fetch(`${API_BASE_URL}/api/admin/portfolio/${itemToDelete.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      })
+      if (res.ok) {
+        setItems((prev) => prev.filter((x) => x.id !== itemToDelete.id))
+        setMenuOpen(null)
+        setToast({ type: 'success', message: 'Portfolio item deleted.' })
+        setItemToDelete(null)
+      } else {
+        setToast({ type: 'error', message: 'Failed to delete item.' })
+      }
+    } catch {
+      setToast({ type: 'error', message: 'Failed to delete item.' })
+    }
+  }
+
+  // Image upload (unchanged)
   const handleImageUpload = (file: File, mode: 'new' | 'edit') => {
     const reader = new FileReader()
     reader.onloadend = () => {
@@ -62,31 +157,13 @@ const AdminPortfolio = () => {
     reader.readAsDataURL(file)
   }
 
-  const handleDelete = (item: PortfolioItem) => {
-    setItemToDelete(item)
+  const handleOpenProject = (item: PortfolioItem) => {
+    window.open(item.projectUrl, '_blank', 'noopener,noreferrer')
+    setToast({ type: 'info', message: 'Opened project in a new tab.' })
   }
 
-  const confirmDelete = () => {
-    if (!itemToDelete) return
-    const item = itemToDelete
-    setItems((prev) => prev.filter((x) => x.id !== item.id))
-    setMenuOpen(null)
-    setToast({ type: 'success', message: 'Portfolio item deleted.' })
-    setItemToDelete(null)
-  }
-
-  const handleEdit = (item: PortfolioItem) => {
-    setEditingItem(item)
-    setIsEditOpen(true)
-    setMenuOpen(null)
-  }
-
-  const handleSaveEdit = () => {
-    if (!editingItem) return
-    setItems((prev) => prev.map((item) => (item.id === editingItem.id ? editingItem : item)))
-    setIsEditOpen(false)
-    setEditingItem(null)
-    setToast({ type: 'success', message: 'Portfolio item updated.' })
+  if (loading) {
+    return <div className="p-6 text-slate-300">Loading portfolio items...</div>
   }
 
   return (

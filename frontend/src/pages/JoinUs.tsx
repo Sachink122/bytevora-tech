@@ -1,34 +1,8 @@
+
+
 import { useState } from 'react'
 import { CheckCircle2, Users, Briefcase } from 'lucide-react'
 import { useLocalStorageValue } from '../hooks/useLocalStorageValue'
-
-interface LeadRecord {
-  id: number
-  name: string
-  business: string
-  service: string
-  email: string
-  phone: string
-  date: string
-  status: string
-  priority: string
-}
-
-interface MessageRecord {
-  id: number
-  createdAt: string
-  status: string
-  senderName: string
-  email: string
-  subject: string
-  channel: string
-  message: string
-  phone?: string
-  role?: string
-  skills?: string
-  portfolioUrl?: string
-  aboutYou?: string
-}
 
 const JoinUs = () => {
   const [firstName, setFirstName] = useState('')
@@ -57,70 +31,58 @@ const JoinUs = () => {
       aboutYou || 'No additional details provided.',
     ].join('\n')
 
-    try {
-      // 1. Send to Local Storage (Keep for instant UI update)
-      const rawLeads = window.localStorage.getItem('admin-leads')
-      const leads = rawLeads ? (JSON.parse(rawLeads) as LeadRecord[]) : []
-      const nextLead: LeadRecord = {
-        id: leads.length ? Math.max(...leads.map((item) => item.id)) + 1 : 1,
-        name: fullName,
-        business: 'Join Us Form',
-        service: roleLabel,
-        email,
-        phone: phone || '-',
-        date: new Date().toISOString().split('T')[0],
-        status: 'New',
-        priority: 'Medium',
-      }
-      window.localStorage.setItem('admin-leads', JSON.stringify([nextLead, ...leads]))
+    // Compose payloads
+    const nextLead = {
+      name: fullName,
+      business: 'Join Us Form',
+      service: roleLabel,
+      email,
+      phone: phone || '-',
+      date: new Date().toISOString().split('T')[0],
+      status: 'New',
+      priority: 'Medium',
+    }
+    const nextMessage = {
+      createdAt: new Date().toISOString(),
+      status: 'New',
+      senderName: fullName,
+      email,
+      subject: messageSubject,
+      channel: 'Join Us Form',
+      message: messageBody,
+      phone: phone || '-',
+      role: roleLabel,
+      skills,
+      portfolioUrl,
+      aboutYou,
+    }
 
-      const rawMessages = window.localStorage.getItem('admin-messages')
-      const messages = rawMessages ? (JSON.parse(rawMessages) as MessageRecord[]) : []
-      const nextMessage: MessageRecord = {
-        id: messages.length ? Math.max(...messages.map((item) => item.id)) + 1 : 1,
-        createdAt: new Date().toISOString(),
-        status: 'New',
-        senderName: fullName,
-        email,
-        subject: messageSubject,
-        channel: 'Join Us Form',
-        message: messageBody,
-        phone: phone || '-',
-        role: roleLabel,
-        skills,
-        portfolioUrl,
-        aboutYou,
-      }
-      window.localStorage.setItem('admin-messages', JSON.stringify([nextMessage, ...messages]))
-
-      window.dispatchEvent(new CustomEvent('local-storage-update', { detail: { key: 'admin-leads' } }))
-      window.dispatchEvent(new CustomEvent('local-storage-update', { detail: { key: 'admin-messages' } }))
-
-      // 2. Send to Backend API
+    Promise.all([
       fetch('/api/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(nextLead),
-      }).catch(console.error)
-
+      }),
       fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(nextMessage),
-      }).catch(console.error)
-
-      setSubmitted(true)
-      setFirstName('')
-      setLastName('')
-      setEmail('')
-      setPhone('')
-      setRole('')
-      setSkills('')
-      setPortfolioUrl('')
-      setAboutYou('')
-    } catch {
-      alert('Could not send right now. Please try again.')
-    }
+      })
+    ])
+      .then(() => {
+        setSubmitted(true)
+        setFirstName('')
+        setLastName('')
+        setEmail('')
+        setPhone('')
+        setRole('')
+        setSkills('')
+        setPortfolioUrl('')
+        setAboutYou('')
+      })
+      .catch(() => {
+        alert('Could not send right now. Please try again.')
+      })
   }
 
   return (

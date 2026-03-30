@@ -1,54 +1,68 @@
-import { motion } from 'framer-motion'
-import { ExternalLink, ArrowRight } from 'lucide-react'
-import { useState } from 'react'
-import Button from '../components/Button'
-import Section from '../components/Section'
-import { useLocalStorageValue } from '../hooks/useLocalStorageValue'
-
-interface PortfolioItem {
-  id: number
-  title: string
-  category: string
-  image: string
-  projectUrl: string
-}
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import Button from '../components/Button';
+import Section from '../components/Section';
+import { ExternalLink, ArrowRight } from 'lucide-react';
 
 const Portfolio = () => {
-  const [filter, setFilter] = useState('all')
-  const items = useLocalStorageValue<PortfolioItem[]>('admin-portfolio-items', [])
-  const portfolioHeroTitle = useLocalStorageValue('admin-settings-portfolio-hero-title', 'Our Portfolio')
-  const portfolioHeroDescription = useLocalStorageValue(
-    'admin-settings-portfolio-hero-description',
-    "Explore our latest work and see how we've helped businesses succeed online. Each project is a testament to our commitment to quality and innovation."
-  )
+  const [filter, setFilter] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const heroWords = portfolioHeroTitle.trim().split(/\s+/).filter(Boolean)
-  const heroLead = heroWords.slice(0, -1).join(' ') || 'Our'
-  const heroAccent = heroWords[heroWords.length - 1] || 'Portfolio'
-
-  const projects = items.map((item) => ({
-    id: item.id,
-    title: item.title,
-    category: item.category,
-    categoryLabel: item.category,
-    description: `Published portfolio item: ${item.title}`,
-    image: item.image,
-    projectUrl: item.projectUrl,
-    tags: [item.category],
-  }))
+  const heroLead = 'Welcome to our portfolio';
+  const heroAccent = 'of amazing projects';
+  const portfolioHeroDescription = 'We create stunning, functional, and user-friendly websites and applications.';
 
   const filters = [
     { id: 'all', label: 'All Projects' },
-    ...Array.from(new Set(projects.map((project) => project.category))).map((category) => ({
-      id: category,
-      label: category,
-    })),
-  ]
+    { id: 'web', label: 'Web Development' },
+    { id: 'app', label: 'App Development' },
+    { id: 'design', label: 'Design' },
+  ];
 
-  const filteredProjects =
-    filter === 'all'
-      ? projects
-      : projects.filter((project) => project.category === filter)
+  const projects = [
+    {
+      id: 'project1',
+      title: 'Website Redesign',
+      description: 'We redesigned a website to improve user experience and performance.',
+      image: '/path/to/project1.jpg',
+      categoryLabel: 'Web Development',
+      tags: ['Redesign', 'Performance', 'User Experience'],
+      projectUrl: 'https://example.com/project1',
+    },
+    {
+      id: 'project2',
+      title: 'App Development',
+      description: 'We developed an app to solve a specific problem.',
+      image: '/path/to/project2.jpg',
+      categoryLabel: 'App Development',
+      tags: ['App', 'Problem Solving', 'Technology'],
+      projectUrl: 'https://example.com/project2',
+    },
+    {
+      id: 'project3',
+      title: 'Design',
+      description: 'We designed a stunning visual concept.',
+      image: '/path/to/project3.jpg',
+      categoryLabel: 'Design',
+      tags: ['Design', 'Visual Concept', 'Creativity'],
+      projectUrl: 'https://example.com/project3',
+    },
+  ];
+
+  useEffect(() => {
+    // Simulate loading
+    setTimeout(() => {
+      setLoading(false);
+    }, 1000);
+  }, []);
+
+  const filteredProjects = projects.filter((project) =>
+    filter === '' || project.categoryLabel === filter
+  );
+
+  if (loading) {
+    return <div className="p-6 text-slate-300">Loading portfolio items...</div>;
+  }
 
   return (
     <>
@@ -58,7 +72,6 @@ const Portfolio = () => {
           <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl" />
           <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl" />
         </div>
-
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -122,7 +135,7 @@ const Portfolio = () => {
                     size="sm"
                     onClick={() => {
                       if (project.projectUrl) {
-                        window.open(project.projectUrl, '_blank', 'noopener,noreferrer')
+                        window.open(project.projectUrl, '_blank', 'noopener,noreferrer');
                       }
                     }}
                   >
@@ -176,7 +189,6 @@ const Portfolio = () => {
             A proven process that ensures quality results every time.
           </p>
         </div>
-
         <div className="grid md:grid-cols-4 gap-8">
           {[
             { step: '01', title: 'Discovery', desc: 'Understanding your goals and requirements' },
@@ -220,7 +232,7 @@ const Portfolio = () => {
         </div>
       </Section>
     </>
-  )
+  );
 }
 
-export default Portfolio
+export default Portfolio;

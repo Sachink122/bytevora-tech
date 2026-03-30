@@ -1,7 +1,20 @@
-import { pgTable, serial, text, timestamp, varchar, integer } from 'drizzle-orm/pg-core';
 
-export const users = pgTable('users', {
-  id: serial('id').primaryKey(),
+import { pgTable, integer, text, timestamp, varchar } from 'drizzle-orm/pg-core';
+
+export const teamMembers = pgTable('team_members', {
+  id: integer('id').primaryKey(),
+  name: text('name').notNull(),
+  role: text('role'),
+  email: text('email'),
+  phone: text('phone'),
+  skills: text('skills'),
+  status: varchar('status', { length: 50 }).default('Active'),
+  created: timestamp('created').defaultNow(),
+});
+
+
+
+  id: integer('id').primaryKey(),
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
   role: varchar('role', { length: 50 }).notNull().default('Admin'),
@@ -9,8 +22,7 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
-export const leads = pgTable('leads', {
-  id: serial('id').primaryKey(),
+  id: integer('id').primaryKey(),
   name: text('name').notNull(),
   business: text('business'),
   service: text('service'),
@@ -21,8 +33,7 @@ export const leads = pgTable('leads', {
   date: timestamp('date').defaultNow(),
 });
 
-export const messages = pgTable('messages', {
-  id: serial('id').primaryKey(),
+  id: integer('id').primaryKey(),
   senderName: text('sender_name').notNull(),
   email: text('email').notNull(),
   subject: text('subject'),
@@ -31,8 +42,7 @@ export const messages = pgTable('messages', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
-export const blogPosts = pgTable('blog_posts', {
-  id: serial('id').primaryKey(),
+  id: integer('id').primaryKey(),
   topic: text('topic'),
   targetKeyword: text('target_keyword'),
   location: text('location'),

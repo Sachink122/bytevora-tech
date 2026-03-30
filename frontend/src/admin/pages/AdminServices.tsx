@@ -1,124 +1,113 @@
-import { useEffect } from 'react'
-import AdminSimpleManager from '../components/AdminSimpleManager'
-import { useLocalStorageState } from '../hooks/useLocalStorageState'
+import { useEffect, useState } from 'react'
 
-interface ServiceRecord {
-  id: number
-  name?: string
-  category?: string
-  deliveryTime?: string
-  basePrice?: string
-  description?: string
-  status?: string
-  createdAt?: string
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+
+const defaultContent = {
+  servicesTitle: 'Our Services',
+  servicesDescription: 'Explore the digital solutions we offer to help your business grow.',
+  service1: 'Web Design & Development',
+  service2: 'UI/UX Design',
+  service3: 'Automation & Integrations',
+  service4: 'SEO & Analytics',
+  service5: 'Branding & Identity',
+  service6: 'Ongoing Support',
 }
 
-const AdminServices = () => {
-  const [services, setServices] = useLocalStorageState<ServiceRecord[]>('admin-services', [])
+export default function AdminServices() {
+  const [content, setContent] = useState(defaultContent)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
 
   useEffect(() => {
-    const defaultServices: Array<Omit<ServiceRecord, 'id'>> = [
-      {
-        name: 'Business Website Development',
-        category: 'Web Development',
-        deliveryTime: '7-14 days',
-        basePrice: '₹25,000',
-        description: 'Professional, conversion-focused websites that establish your brand and drive results.',
-        status: 'Active',
-      },
-      {
-        name: 'Landing Page Design',
-        category: 'Web Design',
-        deliveryTime: '3-7 days',
-        basePrice: '₹12,000',
-        description: 'High-impact landing pages optimized for conversions and lead generation.',
-        status: 'Active',
-      },
-      {
-        name: 'Portfolio Website Design',
-        category: 'Web Design',
-        deliveryTime: '5-10 days',
-        basePrice: '₹18,000',
-        description: 'Custom portfolio websites for creatives to showcase work beautifully.',
-        status: 'Active',
-      },
-      {
-        name: 'E-commerce Solutions',
-        category: 'E-commerce',
-        deliveryTime: '14-30 days',
-        basePrice: '₹45,000',
-        description: 'Complete online stores with payments, inventory, and order workflows.',
-        status: 'Active',
-      },
-      {
-        name: 'Custom Dashboard / CRM',
-        category: 'Business Systems',
-        deliveryTime: '21-45 days',
-        basePrice: '₹60,000',
-        description: 'Custom dashboards and CRM systems to manage operations and customer data.',
-        status: 'Active',
-      },
-      {
-        name: 'Website Maintenance & Support',
-        category: 'Maintenance',
-        deliveryTime: 'Ongoing',
-        basePrice: '₹8,000/month',
-        description: 'Ongoing maintenance, monitoring, updates, and technical support.',
-        status: 'Active',
-      },
-      {
-        name: 'Google Business Profile Setup',
-        category: 'Local SEO',
-        deliveryTime: '2-5 days',
-        basePrice: '₹6,000',
-        description: 'Setup and optimize Google Business Profile to improve local discoverability.',
-        status: 'Active',
-      },
-      {
-        name: 'Branding & UI/UX Design',
-        category: 'Design',
-        deliveryTime: '7-21 days',
-        basePrice: '₹20,000',
-        description: 'Brand identity, UI systems, and UX design for stronger digital experiences.',
-        status: 'Active',
-      },
-    ]
+    const fetchContent = async () => {
+      try {
+        const token = localStorage.getItem('agency_auth_token') || ''
+        const response = await fetch(`${API_BASE_URL}/api/admin/content/services`, {
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
+        })
+        if (response.ok) {
+          const data = await response.json()
+          if (data.content) setContent(JSON.parse(data.content))
+        }
+      } catch {
+        // ignore fetch errors
+      }
+      setLoading(false)
+    }
+    fetchContent()
+  }, [])
 
-    const normalize = (value?: string) => (value || '').trim().toLowerCase()
+  const handleChange = (e) => {
+    setContent((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+  }
 
-    const existingNames = new Set(services.map((item) => normalize(item.name)))
-    const missing = defaultServices.filter((item) => !existingNames.has(normalize(item.name)))
+  const handleSave = async () => {
+    setSaving(true)
+    setMessage('')
+    try {
+      const token = localStorage.getItem('agency_auth_token') || ''
+      const response = await fetch(`${API_BASE_URL}/api/admin/content/services`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({ content: JSON.stringify(content) }),
+      })
+      if (response.ok) {
+        setMessage('Services content saved and published!')
+      } else {
+        setMessage('Failed to save. Check your connection or login.')
+      }
+    } catch {
+      setMessage('Failed to save. Check your connection or login.')
+    }
+    setSaving(false)
+  }
 
-    if (!missing.length) return
-
-    setServices((prev) => {
-      const currentMaxId = prev.length ? Math.max(...prev.map((item) => item.id)) : 0
-      const nextItems = missing.map((item, index) => ({
-        id: currentMaxId + index + 1,
-        createdAt: new Date().toISOString(),
-        ...item,
-      }))
-      return [...prev, ...nextItems]
-    })
-  }, [services, setServices])
+  if (loading) return <div className="p-6 text-slate-300">Loading Services content...</div>
 
   return (
-    <AdminSimpleManager
-      title="Services"
-      description="Manage your service offerings and delivery details."
-      storageKey="admin-services"
-      defaultStatus="Active"
-      statusOptions={['Active', 'Paused', 'Archived']}
-      addButtonLabel="Add Service"
-      fields={[
-        { key: 'name', label: 'Service Name', required: true, placeholder: 'Business Website Development' },
-        { key: 'category', label: 'Category', required: true, placeholder: 'Web Development' },
-        { key: 'deliveryTime', label: 'Delivery Time', placeholder: '7-14 days' },
-        { key: 'basePrice', label: 'Base Price', type: 'text', placeholder: '₹25,000' },
-        { key: 'description', label: 'Description', type: 'textarea', placeholder: 'Describe the outcome and scope.' },
-      ]}
-    />
+    <div className="max-w-2xl mx-auto space-y-6 p-6">
+      <h2 className="text-xl font-semibold text-white mb-2">Edit Services Page Content</h2>
+      <div className="space-y-4">
+        {Object.keys(content).map((key) => (
+          <div key={key}>
+            <label className="block text-slate-400 mb-1 capitalize">{key.replace(/([A-Z])/g, ' $1')}</label>
+            <input
+              type="text"
+              name={key}
+              value={content[key] || ''}
+              onChange={handleChange}
+              className="w-full rounded-lg bg-slate-800 border border-white/10 p-2 text-slate-200"
+            />
+          </div>
+        ))}
+      </div>
+      <button
+        onClick={() => {
+          // Find next available service key
+          let i = 1;
+          while (content[`service${i}`]) i++;
+          setContent((prev) => ({ ...prev, [`service${i}`]: '' }));
+        }}
+        className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white font-semibold mt-2 mr-4"
+      >
+        + Add Service
+      </button>
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold mt-2"
+      >
+        {saving ? 'Saving...' : 'Save & Publish'}
+      </button>
+      {message && <div className="mt-2 text-emerald-400">{message}</div>}
+    </div>
   )
 }
 
-export default AdminServices
+

@@ -131,41 +131,41 @@ const Contact = () => {
         'Other',
       ]
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-    const fullName = `${firstName} ${lastName}`.trim()
-    const messageSubject = `Website inquiry${service ? ` - ${service}` : ''}`
-    const messageBody = `Budget: ${budget || 'Not specified'}\n\n${projectDetails}`
+    const fullName = `${firstName} ${lastName}`.trim();
+    const nextLead = {
+      name: fullName || firstName || 'New Contact',
+      business: 'Website Contact Form',
+      service: service || 'Other',
+      email,
+      phone: phone || '-',
+      date: new Date().toISOString().split('T')[0],
+      status: 'New',
+      priority: 'Medium',
+    };
 
     try {
-      const rawLeads = window.localStorage.getItem('admin-leads')
-      const leads = rawLeads ? (JSON.parse(rawLeads) as LeadRecord[]) : []
-      const nextLead: LeadRecord = {
-        id: leads.length ? Math.max(...leads.map((item) => item.id)) + 1 : 1,
-        name: fullName || firstName || 'New Contact',
-        business: 'Website Contact Form',
-        service: service || 'Other',
-        email,
-        phone: phone || '-',
-        date: new Date().toISOString().split('T')[0],
-        status: 'New',
-        priority: 'Medium',
+      const response = await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nextLead),
+      });
+      if (response.ok) {
+        setSubmitted(true);
+        setFirstName('');
+        setLastName('');
+        setEmail('');
+        setPhone('');
+        setService('');
+        setBudget('');
+        setProjectDetails('');
+      } else {
+        alert('Could not send right now. Please try again.');
       }
-      window.localStorage.setItem('admin-leads', JSON.stringify([nextLead, ...leads]))
-
-      window.dispatchEvent(new CustomEvent('local-storage-update', { detail: { key: 'admin-leads' } }))
-
-      setSubmitted(true)
-      setFirstName('')
-      setLastName('')
-      setEmail('')
-      setPhone('')
-      setService('')
-      setBudget('')
-      setProjectDetails('')
     } catch {
-      alert('Could not send right now. Please try again.')
+      alert('Could not send right now. Please try again.');
     }
   }
 

@@ -1,3 +1,53 @@
+import { teamMembers } from '../db/schema.js'
+// --- Team Members Endpoints ---
+
+// Public: Get all team members
+app.get('/api/team', async (_req, res) => {
+  try {
+    const members = await db.select().from(teamMembers)
+    res.json({ members })
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch team members' })
+  }
+})
+
+// Admin: Add a new team member
+app.post('/api/admin/team', requireAuth, async (req, res) => {
+  const { name, role, email, phone, skills, status } = req.body
+  if (!name) return res.status(400).json({ message: 'Name is required' })
+  try {
+    const [member] = await db.insert(teamMembers).values({ name, role, email, phone, skills, status }).returning()
+    res.status(201).json({ member })
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to add team member' })
+  }
+})
+
+// Admin: Edit a team member
+app.put('/api/admin/team/:id', requireAuth, async (req, res) => {
+  const id = Number(req.params.id)
+  const { name, role, email, phone, skills, status } = req.body
+  if (!name) return res.status(400).json({ message: 'Name is required' })
+  try {
+    await db.update(teamMembers)
+      .set({ name, role, email, phone, skills, status })
+      .where(teamMembers.id.eq(id))
+    res.json({ message: 'Team member updated' })
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to update team member' })
+  }
+})
+
+// Admin: Delete a team member
+app.delete('/api/admin/team/:id', requireAuth, async (req, res) => {
+  const id = Number(req.params.id)
+  try {
+    await db.delete(teamMembers).where(teamMembers.id.eq(id))
+    res.json({ message: 'Team member deleted' })
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to delete team member' })
+  }
+})
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
@@ -6,7 +56,7 @@ import bcrypt from 'bcryptjs'
 import dotenv from 'dotenv'
 import cookieParser from 'cookie-parser'
 import { db } from '../db/index.js'
-import { users, leads, messages, blogPosts } from '../db/schema.js'
+import { users, leads, messages, blogPosts, portfolioItems, siteContent } from '../db/schema.js'
 import { eq } from 'drizzle-orm'
 
 dotenv.config()
@@ -26,10 +76,143 @@ const ADMIN_PASSWORD = process.env.AUTH_ADMIN_PASSWORD || 'ChangeMe123!'
 const ADMIN_NAME = process.env.AUTH_ADMIN_NAME || 'Admin User'
 const ADMIN_ROLE = process.env.AUTH_ADMIN_ROLE || 'Admin'
 
-const allowedOrigins = (process.env.AUTH_ALLOWED_ORIGINS || '*')
-  .split(',')
-  .map((value) => value.trim())
-  .filter(Boolean)
+// --- Portfolio Items Endpoints ---
+
+// Public: Get all portfolio items
+app.get('/api/portfolio', async (_req, res) => {
+  try {
+    const items = await db.select().from(portfolioItems).orderBy(portfolioItems.createdAt.desc())
+    res.json({ items })
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch portfolio items' })
+  }
+})
+
+// Admin: Get all portfolio items
+app.get('/api/admin/portfolio', requireAuth, async (_req, res) => {
+  try {
+    const items = await db.select().from(portfolioItems).orderBy(portfolioItems.createdAt.desc())
+    res.json({ items })
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch portfolio items' })
+  }
+})
+
+// Admin: Create portfolio item
+app.post('/api/admin/portfolio', requireAuth, async (req, res) => {
+  const { title, category, image, projectUrl } = req.body
+  if (!title || !category) return res.status(400).json({ message: 'Title and category are required' })
+  try {
+    const [item] = await db.insert(portfolioItems).values({ title, category, image, projectUrl }).returning()
+    res.status(201).json({ item })
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to create portfolio item' })
+  }
+})
+
+// Admin: Update portfolio item
+app.put('/api/admin/portfolio/:id', requireAuth, async (req, res) => {
+  const id = Number(req.params.id)
+  const { title, category, image, projectUrl } = req.body
+  if (!title || !category) return res.status(400).json({ message: 'Title and category are required' })
+  try {
+    await db.update(portfolioItems)
+      .set({ title, category, image, projectUrl, updatedAt: new Date() })
+      .where(portfolioItems.id.eq(id))
+    res.json({ message: 'Portfolio item updated' })
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to update portfolio item' })
+  }
+})
+
+// Admin: Delete portfolio item
+app.delete('/api/admin/portfolio/:id', requireAuth, async (req, res) => {
+  const id = Number(req.params.id)
+  try {
+    await db.delete(portfolioItems).where(portfolioItems.id.eq(id))
+    res.json({ message: 'Portfolio item deleted' })
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to delete portfolio item' })
+  }
+})
+// --- Site Content Endpoints (About section) ---
+
+// Public fetch
+app.get('/api/content/about', async (_req, res) => {
+  try {
+    const [row] = await db.select().from(siteContent).where(siteContent.section.eq('about'))
+    if (!row) return res.json({ content: '' })
+    return res.json({ content: row.content })
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to fetch about content' })
+  }
+})
+
+// Admin fetch
+app.get('/api/admin/content/about', requireAuth, async (_req, res) => {
+  try {
+    const [row] = await db.select().from(siteContent).where(siteContent.section.eq('about'))
+    if (!row) return res.json({ content: '' })
+    return res.json({ content: row.content })
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to fetch about content' })
+  }
+})
+
+// Admin update
+app.post('/api/admin/content/about', requireAuth, async (req, res) => {
+  const content = String(req.body?.content || '')
+  if (!content) return res.status(400).json({ message: 'Content required' })
+  try {
+    // Upsert
+    await db.delete(siteContent).where(siteContent.section.eq('about'))
+    await db.insert(siteContent).values({ section: 'about', content })
+    return res.json({ message: 'About content updated' })
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to update about content' })
+  }
+})
+// Duplicate import removed: siteContent is already imported above
+// --- Site Content Endpoints (Home as example) ---
+
+// Public fetch
+app.get('/api/content/home', async (_req, res) => {
+  try {
+    const [row] = await db.select().from(siteContent).where(siteContent.section.eq('home'))
+    if (!row) return res.json({ content: '' })
+    return res.json({ content: row.content })
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to fetch home content' })
+  }
+})
+
+// Admin fetch
+app.get('/api/admin/content/home', requireAuth, async (_req, res) => {
+  try {
+    const [row] = await db.select().from(siteContent).where(siteContent.section.eq('home'))
+    if (!row) return res.json({ content: '' })
+    return res.json({ content: row.content })
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to fetch home content' })
+  }
+})
+
+// Admin update
+app.post('/api/admin/content/home', requireAuth, async (req, res) => {
+  const content = String(req.body?.content || '')
+  if (!content) return res.status(400).json({ message: 'Content required' })
+  try {
+    // Upsert
+    await db.delete(siteContent).where(siteContent.section.eq('home'))
+    await db.insert(siteContent).values({ section: 'home', content })
+    return res.json({ message: 'Home content updated' })
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to update home content' })
+  }
+})
+// Duplicate imports and initialization removed
+// Duplicate constants removed
+// Removed stray .split(',') chain; ensure allowedOrigins is defined properly below if needed
 
 const corsOptions = {
   origin: true,
