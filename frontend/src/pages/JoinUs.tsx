@@ -96,12 +96,24 @@ const JoinUs = () => {
       window.dispatchEvent(new CustomEvent('local-storage-update', { detail: { key: 'admin-leads' } }))
       window.dispatchEvent(new CustomEvent('local-storage-update', { detail: { key: 'admin-messages' } }))
 
-      // 2. Send to Backend API
-      fetch('/api/leads', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(nextLead),
-      }).catch(console.error)
+      // 2. Send structured payload to Backend API
+      try {
+        fetch('/api/leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            firstName,
+            lastName,
+            email,
+            phone: phone || '-',
+            service: roleLabel,
+            budget: '',
+            projectDetails: aboutYou || '',
+          }),
+        }).catch(console.error)
+      } catch (err) {
+        console.error('Failed to send join-us lead', err)
+      }
 
       fetch('/api/messages', {
         method: 'POST',

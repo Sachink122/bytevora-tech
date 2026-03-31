@@ -45,6 +45,7 @@ const Contact = () => {
   const [budget, setBudget] = useState('')
   const [projectDetails, setProjectDetails] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const businessEmail = useLocalStorageValue('admin-settings-business-email', 'bytevora1tech@gmail.com')
   const phoneNumber = useLocalStorageValue('admin-settings-phone', '8668398960')
@@ -131,30 +132,35 @@ const Contact = () => {
         'Other',
       ]
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     const fullName = `${firstName} ${lastName}`.trim()
-    const messageSubject = `Website inquiry${service ? ` - ${service}` : ''}`
-    const messageBody = `Budget: ${budget || 'Not specified'}\n\n${projectDetails}`
 
+    // Send structured payload matching new leads schema
+    const payload = {
+      firstName: firstName || '',
+      lastName: lastName || '',
+      email,
+      phone: phone || '-',
+      service: service || 'Other',
+      budget: budget || '',
+      projectDetails: projectDetails || '',
+    }
+
+    setIsSubmitting(true)
     try {
-      const rawLeads = window.localStorage.getItem('admin-leads')
-      const leads = rawLeads ? (JSON.parse(rawLeads) as LeadRecord[]) : []
-      const nextLead: LeadRecord = {
-        id: leads.length ? Math.max(...leads.map((item) => item.id)) + 1 : 1,
-        name: fullName || firstName || 'New Contact',
-        business: 'Website Contact Form',
-        service: service || 'Other',
-        email,
-        phone: phone || '-',
-        date: new Date().toISOString().split('T')[0],
-        status: 'New',
-        priority: 'Medium',
-      }
-      window.localStorage.setItem('admin-leads', JSON.stringify([nextLead, ...leads]))
+      const res = await fetch(`${API_BASE_URL}/api/leads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
 
-      window.dispatchEvent(new CustomEvent('local-storage-update', { detail: { key: 'admin-leads' } }))
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.message || 'Failed to submit lead')
+      }
 
       setSubmitted(true)
       setFirstName('')
@@ -164,8 +170,11 @@ const Contact = () => {
       setService('')
       setBudget('')
       setProjectDetails('')
-    } catch {
-      alert('Could not send right now. Please try again.')
+    } catch (err: any) {
+      console.error('Lead submit error', err)
+      alert(err?.message || 'Could not send right now. Please try again.')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 

@@ -395,6 +395,24 @@ const Home = () => {
       setContactService('')
       setContactBudget('')
       setContactProjectDetails('')
+      // Send structured payload to backend
+      try {
+        fetch(`${API_BASE_URL}/api/leads`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            firstName: contactFirstName,
+            lastName: contactLastName,
+            email: contactEmail,
+            phone: contactPhone || '-',
+            service: contactService || 'Other',
+            budget: contactBudget || '',
+            projectDetails: contactProjectDetails || '',
+          }),
+        }).catch(console.error)
+      } catch {
+        // ignore
+      }
     } catch {
       alert('Could not send right now. Please try again.')
     }

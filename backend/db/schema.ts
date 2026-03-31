@@ -1,7 +1,7 @@
-import { pgTable, serial, text, timestamp, varchar, integer } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, varchar, integer, boolean } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
-  id: serial('id').primaryKey(),
+  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
   role: varchar('role', { length: 50 }).notNull().default('Admin'),
@@ -10,19 +10,20 @@ export const users = pgTable('users', {
 });
 
 export const leads = pgTable('leads', {
-  id: serial('id').primaryKey(),
-  name: text('name').notNull(),
-  business: text('business'),
+  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+  first_name: text('first_name'),
+  last_name: text('last_name'),
   service: text('service'),
   email: text('email').notNull(),
   phone: text('phone'),
+  budget: text('budget'),
+  project_details: text('project_details'),
   status: varchar('status', { length: 50 }).default('New'),
-  priority: varchar('priority', { length: 50 }).default('Medium'),
-  date: timestamp('date').defaultNow(),
+  created_at: timestamp('created_at').defaultNow(),
 });
 
 export const messages = pgTable('messages', {
-  id: serial('id').primaryKey(),
+  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
   senderName: text('sender_name').notNull(),
   email: text('email').notNull(),
   subject: text('subject'),
@@ -32,22 +33,48 @@ export const messages = pgTable('messages', {
 });
 
 export const blogPosts = pgTable('blog_posts', {
-  id: serial('id').primaryKey(),
-  topic: text('topic'),
-  targetKeyword: text('target_keyword'),
-  location: text('location'),
+  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
   title: text('title').notNull(),
-  slug: text('slug').notNull(),
-  author: text('author'),
-  publishDate: text('publish_date'),
+  slug: text('slug').notNull().unique(),
   metaTitle: text('meta_title'),
   metaDescription: text('meta_description'),
-  keywords: text('keywords'),
-  featureImage: text('feature_image'),
-  imageSuggestions: text('image_suggestions'),
-  internalLinks: text('internal_links'),
   summary: text('summary'),
-  contentHtml: text('content_html'),
-  status: varchar('status', { length: 50 }).default('Draft'),
+  content: text('content'),
+  // store images as JSON stringified array to keep compatibility
+  images: text('images'),
+  published: boolean('published').default(false),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const teamMembers = pgTable('team_members', {
+  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+  name: text('name').notNull(),
+  role: text('role'),
+  email: text('email'),
+  phone: text('phone'),
+  skills: text('skills'),
+  status: varchar('status', { length: 50 }).default('Active'),
+  created: timestamp('created').defaultNow(),
+});
+
+export const services = pgTable('services', {
+  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+  title: text('title').notNull(),
+  slug: text('slug').notNull(),
+  summary: text('summary'),
+  description: text('description'),
+  icon: text('icon'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const projects = pgTable('projects', {
+  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+  title: text('title').notNull(),
+  category: text('category'),
+  description: text('description'),
+  image: text('image'),
+  projectUrl: text('project_url'),
+  tags: text('tags'),
+  status: varchar('status', { length: 50 }).default('Published'),
   createdAt: timestamp('created_at').defaultNow(),
 });

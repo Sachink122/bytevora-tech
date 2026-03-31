@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Plus, Download } from 'lucide-react'
 import DataTable from '../components/DataTable'
 import StatusBadge from '../components/StatusBadge'
@@ -9,14 +9,16 @@ import { useLocalStorageState } from '../hooks/useLocalStorageState'
 
 interface Lead {
   id: number
-  name: string
-  business: string
-  service: string
-  email: string
-  phone: string
-  date: string
-  status: string
-  priority: string
+  firstName?: string
+  lastName?: string
+  email?: string
+  phone?: string
+  service?: string
+  budget?: string
+  projectDetails?: string
+  date?: string
+  status?: string
+  priority?: string
 }
 
 const AdminLeads = () => {
@@ -34,13 +36,55 @@ const AdminLeads = () => {
   const [priorityFilter, setPriorityFilter] = useState('')
 
   const [leads, setLeads] = useLocalStorageState<Lead[]>('admin-leads', [])
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+
+  // Fetch leads from backend when admin is authenticated
+  useEffect(() => {
+    let mounted = true
+    const fetchLeads = async () => {
+      try {
+        const token = localStorage.getItem('agency_auth_token') || ''
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        if (token) headers.Authorization = `Bearer ${token}`
+
+        const res = await fetch(`${API_BASE_URL}/api/leads`, { headers })
+        if (!res.ok) return
+        const data = (await res.json()) as any[]
+        if (!mounted) return
+        const mapped: Lead[] = data.map((d) => ({
+          id: d.id,
+          firstName: d.firstName || '',
+          lastName: d.lastName || '',
+          email: d.email || '',
+          phone: d.phone || '',
+          service: d.service || '',
+          budget: d.budget || '',
+          projectDetails: d.projectDetails || '',
+          date: d.createdAt ? new Date(d.createdAt).toISOString().split('T')[0] : '',
+          status: d.status || '',
+          priority: d.priority || '',
+        }))
+        setLeads(mapped)
+      } catch (e) {
+        // keep local state if fetch fails
+        console.error('Failed to fetch admin leads', e)
+      }
+    }
+
+    fetchLeads()
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   const [newLead, setNewLead] = useState<Omit<Lead, 'id' | 'date'>>({
-    name: '',
-    business: '',
-    service: 'Business Website',
+    firstName: '',
+    lastName: '',
     email: '',
     phone: '',
+    service: 'Business Website',
+    budget: '',
+    projectDetails: '',
     status: 'New',
     priority: 'Medium',
   })
@@ -61,27 +105,75 @@ const AdminLeads = () => {
   }
 
   const handleAddLead = () => {
-    if (!newLead.name || !newLead.business || !newLead.email || !newLead.phone) {
+    if (!newLead.firstName || !newLead.email || !newLead.phone) {
       setToast({ type: 'warning', message: 'Please fill all required lead fields.' })
       return
     }
-    const item: Lead = {
-      ...newLead,
-      id: leads.length ? Math.max(...leads.map((x) => x.id)) + 1 : 1,
-      date: new Date().toISOString().split('T')[0],
-    }
-    setLeads((prev) => [item, ...prev])
-    setIsAddLeadOpen(false)
-    setToast({ type: 'success', message: 'Lead added successfully.' })
-    setNewLead({
-      name: '',
-      business: '',
-      service: 'Business Website',
-      email: '',
-      phone: '',
-      status: 'New',
-      priority: 'Medium',
-    })
+    ;(async () => {
+      try {
+        const token = localStorage.getItem('agency_auth_token') || ''
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        if (token) headers.Authorization = `Bearer ${token}`
+
+        const payload = {
+          firstName: newLead.firstName,
+          lastName: newLead.lastName,
+          email: newLead.email,
+          phone: newLead.phone,
+          service: newLead.service,
+          budget: newLead.budget,
+          projectDetails: newLead.projectDetails,
+          status: newLead.status || 'New',
+        }
+
+        const res = await fetch(`${API_BASE_URL}/api/leads`, { method: 'POST', headers, body: JSON.stringify(payload) })
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}))
+          setToast({ type: 'danger', message: `Failed to save lead: ${body?.message || res.status}` })
+          return
+        }
+
+        const body = await res.json().catch(() => null)
+        const saved = body?.lead
+
+        const item: Lead = saved
+          ? {
+              id: saved.id,
+              firstName: saved.firstName || '',
+              lastName: saved.lastName || '',
+              email: saved.email || '',
+              phone: saved.phone || '',
+              service: saved.service || '',
+              budget: saved.budget || '',
+              projectDetails: saved.projectDetails || '',
+              date: saved.createdAt ? new Date(saved.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+              status: saved.status || 'New',
+            }
+          : {
+              ...newLead,
+              id: leads.length ? Math.max(...leads.map((x) => x.id)) + 1 : 1,
+              date: new Date().toISOString().split('T')[0],
+            }
+
+        setLeads((prev) => [item, ...prev])
+        setIsAddLeadOpen(false)
+        setToast({ type: 'success', message: 'Lead added successfully.' })
+        setNewLead({
+          firstName: '',
+          lastName: '',
+          email: '',
+          phone: '',
+          service: 'Business Website',
+          budget: '',
+          projectDetails: '',
+          status: 'New',
+          priority: 'Medium',
+        })
+      } catch (err) {
+        console.error('Add lead error', err)
+        setToast({ type: 'danger', message: 'Failed to save lead (network error)' })
+      }
+    })()
   }
 
   const handleEditLead = (lead: Lead) => {
@@ -115,8 +207,8 @@ const AdminLeads = () => {
       setToast({ type: 'warning', message: 'No leads available to export.' })
       return
     }
-    const headers = ['Name', 'Business', 'Service', 'Email', 'Phone', 'Date', 'Status', 'Priority']
-    const rows = filteredLeads.map((lead) => [lead.name, lead.business, lead.service, lead.email, lead.phone, lead.date, lead.status, lead.priority])
+    const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'Service', 'Budget', 'Project Details', 'Date', 'Status']
+    const rows = filteredLeads.map((lead) => [lead.firstName || '', lead.lastName || '', lead.email || '', lead.phone || '', lead.service || '', lead.budget || '', (lead.projectDetails || '').replace(/\n/g, ' '), lead.date || '', lead.status || ''])
     const csv = [headers.join(','), ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
@@ -129,14 +221,15 @@ const AdminLeads = () => {
   }
 
   const columns = [
-    { key: 'name', label: 'Name' },
-    { key: 'business', label: 'Business' },
-    { key: 'service', label: 'Service Interest' },
+    { key: 'firstName', label: 'First Name' },
+    { key: 'lastName', label: 'Last Name' },
     { key: 'email', label: 'Email' },
-    { key: 'phone', label: 'Contact' },
+    { key: 'phone', label: 'Phone' },
+    { key: 'service', label: 'Service' },
+    { key: 'budget', label: 'Budget' },
+    { key: 'projectDetails', label: 'Project Details', render: (row: Lead) => <div className="max-w-[24rem] truncate">{row.projectDetails}</div> },
     { key: 'date', label: 'Date' },
     { key: 'status', label: 'Status', render: (row: Lead) => <StatusBadge status={row.status} /> },
-    { key: 'priority', label: 'Priority', render: (row: Lead) => <StatusBadge status={row.priority} /> },
   ]
 
   return (
@@ -223,12 +316,12 @@ const AdminLeads = () => {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-slate-400 text-sm">Name</label>
-                  <p className="text-white font-medium">{selectedLead.name}</p>
+                  <label className="text-slate-400 text-sm">First Name</label>
+                  <p className="text-white font-medium">{selectedLead.firstName}</p>
                 </div>
                 <div>
-                  <label className="text-slate-400 text-sm">Business</label>
-                  <p className="text-white font-medium">{selectedLead.business}</p>
+                  <label className="text-slate-400 text-sm">Last Name</label>
+                  <p className="text-white font-medium">{selectedLead.lastName}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -250,6 +343,10 @@ const AdminLeads = () => {
                   <label className="text-slate-400 text-sm">Status</label>
                   <StatusBadge status={selectedLead.status} />
                 </div>
+              </div>
+              <div className="mt-4">
+                <h4 className="text-sm text-slate-500">Project Details</h4>
+                <div className="whitespace-pre-line text-base">{selectedLead.projectDetails || '—'}</div>
               </div>
               <div>
                 <label className="text-slate-400 text-sm mb-2 block">Notes</label>
@@ -276,7 +373,7 @@ const AdminLeads = () => {
                 <button
                   onClick={() => {
                     if (!selectedLead) return
-                    const proposalMessage = `Proposal started for ${selectedLead.name} (${selectedLead.business})`
+                    const proposalMessage = `Proposal started for ${selectedLead.firstName || ''} ${selectedLead.lastName || ''}`
                     const updatedNotes = leadNotes ? `${leadNotes}\n${proposalMessage}` : proposalMessage
                     setLeadNotes(updatedNotes)
                     setNotesByLeadId((prev) => ({ ...prev, [selectedLead.id]: updatedNotes }))
@@ -302,8 +399,10 @@ const AdminLeads = () => {
 
       <Modal isOpen={isAddLeadOpen} onClose={() => setIsAddLeadOpen(false)} title="Add Lead" size="lg">
         <div className="grid md:grid-cols-2 gap-4">
-          <input className="px-4 py-2.5 bg-slate-800 border border-white/10 rounded-xl text-white" placeholder="Name" value={newLead.name} onChange={(e) => setNewLead((p) => ({ ...p, name: e.target.value }))} />
-          <input className="px-4 py-2.5 bg-slate-800 border border-white/10 rounded-xl text-white" placeholder="Business" value={newLead.business} onChange={(e) => setNewLead((p) => ({ ...p, business: e.target.value }))} />
+          <input className="px-4 py-2.5 bg-slate-800 border border-white/10 rounded-xl text-white" placeholder="First Name" value={newLead.firstName} onChange={(e) => setNewLead((p) => ({ ...p, firstName: e.target.value }))} />
+          <input className="px-4 py-2.5 bg-slate-800 border border-white/10 rounded-xl text-white" placeholder="Last Name" value={newLead.lastName} onChange={(e) => setNewLead((p) => ({ ...p, lastName: e.target.value }))} />
+          <input className="px-4 py-2.5 bg-slate-800 border border-white/10 rounded-xl text-white" placeholder="Budget" value={newLead.budget} onChange={(e) => setNewLead((p) => ({ ...p, budget: e.target.value }))} />
+          <input className="px-4 py-2.5 bg-slate-800 border border-white/10 rounded-xl text-white" placeholder="Project Details" value={newLead.projectDetails} onChange={(e) => setNewLead((p) => ({ ...p, projectDetails: e.target.value }))} />
           <input className="px-4 py-2.5 bg-slate-800 border border-white/10 rounded-xl text-white" placeholder="Email" value={newLead.email} onChange={(e) => setNewLead((p) => ({ ...p, email: e.target.value }))} />
           <input className="px-4 py-2.5 bg-slate-800 border border-white/10 rounded-xl text-white" placeholder="Phone" value={newLead.phone} onChange={(e) => setNewLead((p) => ({ ...p, phone: e.target.value }))} />
           <select className="px-4 py-2.5 bg-slate-800 border border-white/10 rounded-xl text-white" value={newLead.service} onChange={(e) => setNewLead((p) => ({ ...p, service: e.target.value }))}>
@@ -328,8 +427,10 @@ const AdminLeads = () => {
         {editingLead && (
           <>
             <div className="grid md:grid-cols-2 gap-4">
-              <input className="px-4 py-2.5 bg-slate-800 border border-white/10 rounded-xl text-white" value={editingLead.name} onChange={(e) => setEditingLead((p) => (p ? { ...p, name: e.target.value } : p))} />
-              <input className="px-4 py-2.5 bg-slate-800 border border-white/10 rounded-xl text-white" value={editingLead.business} onChange={(e) => setEditingLead((p) => (p ? { ...p, business: e.target.value } : p))} />
+              <input className="px-4 py-2.5 bg-slate-800 border border-white/10 rounded-xl text-white" value={editingLead.firstName} onChange={(e) => setEditingLead((p) => (p ? { ...p, firstName: e.target.value } : p))} />
+              <input className="px-4 py-2.5 bg-slate-800 border border-white/10 rounded-xl text-white" value={editingLead.lastName} onChange={(e) => setEditingLead((p) => (p ? { ...p, lastName: e.target.value } : p))} />
+              <input className="px-4 py-2.5 bg-slate-800 border border-white/10 rounded-xl text-white" value={editingLead.budget} onChange={(e) => setEditingLead((p) => (p ? { ...p, budget: e.target.value } : p))} />
+              <input className="px-4 py-2.5 bg-slate-800 border border-white/10 rounded-xl text-white" value={editingLead.projectDetails} onChange={(e) => setEditingLead((p) => (p ? { ...p, projectDetails: e.target.value } : p))} />
               <input className="px-4 py-2.5 bg-slate-800 border border-white/10 rounded-xl text-white" value={editingLead.email} onChange={(e) => setEditingLead((p) => (p ? { ...p, email: e.target.value } : p))} />
               <input className="px-4 py-2.5 bg-slate-800 border border-white/10 rounded-xl text-white" value={editingLead.phone} onChange={(e) => setEditingLead((p) => (p ? { ...p, phone: e.target.value } : p))} />
               <select className="px-4 py-2.5 bg-slate-800 border border-white/10 rounded-xl text-white" value={editingLead.service} onChange={(e) => setEditingLead((p) => (p ? { ...p, service: e.target.value } : p))}>

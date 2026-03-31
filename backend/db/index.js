@@ -7,11 +7,13 @@ dotenv.config();
 
 const { Pool } = pg;
 
+const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.STORAGE_URL || '';
+
+const useSsl = String(process.env.PG_SSL || 'false').toLowerCase() === 'true';
+
 const pool = new Pool({
-  connectionString: process.env.STORAGE_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
+  connectionString,
+  ssl: useSsl ? { rejectUnauthorized: false } : undefined,
 });
 
 export const db = drizzle(pool, { schema });

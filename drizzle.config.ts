@@ -7,7 +7,6 @@ export default defineConfig({
   schema: './backend/db/schema.ts',
   out: './drizzle',
   dialect: 'postgresql',
-  dbCredentials: {
-    url: process.env.STORAGE_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL || '',
-  },
+  driver: 'pg',
+  connectionString: process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.STORAGE_URL || '',
 });

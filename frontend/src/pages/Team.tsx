@@ -2,6 +2,9 @@ import { motion } from 'framer-motion'
 import { Briefcase } from 'lucide-react'
 import Section from '../components/Section'
 import { useLocalStorageValue } from '../hooks/useLocalStorageValue'
+import { useEffect, useState } from 'react'
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
 interface TeamMember {
   id: number
@@ -14,7 +17,10 @@ interface TeamMember {
 }
 
 const Team = () => {
-  const members = useLocalStorageValue<TeamMember[]>('admin-team', [])
+  const localMembers = useLocalStorageValue<TeamMember[]>('admin-team', [])
+  const [members, setMembers] = useState<TeamMember[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const teamHeroTitle = useLocalStorageValue('admin-settings-team-hero-title', 'Meet Our Team')
   const teamHeroDescription = useLocalStorageValue(
     'admin-settings-team-hero-description',
@@ -24,7 +30,30 @@ const Team = () => {
   const heroLead = heroWords.slice(0, -1).join(' ') || 'Meet Our'
   const heroAccent = heroWords[heroWords.length - 1] || 'Team'
 
-  const activeMembers = members.filter((member) => (member.status || 'Active') === 'Active')
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/team`)
+        if (!res.ok) throw new Error('Failed to fetch team')
+        const data = (await res.json()) as TeamMember[]
+        if (!cancelled) setMembers(data.length ? data : localMembers)
+      } catch (err: any) {
+        console.error('Team load error', err)
+        setError(err?.message || 'Failed to load team')
+        setMembers(localMembers)
+      } finally {
+        if (!cancelled) setIsLoading(false)
+      }
+    }
+
+    void load()
+    return () => { cancelled = true }
+  }, [localMembers])
+
+  const activeMembers = members.filter((member) => String(member.status || 'Active').toLowerCase() === 'active')
 
   return (
     <>
@@ -53,7 +82,15 @@ const Team = () => {
       </section>
 
       <Section variant="light">
-        {activeMembers.length ? (
+        {isLoading ? (
+          <div className="text-center py-16">
+            <p className="text-slate-400 text-lg">Loading team members...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-16">
+            <p className="text-rose-400 text-lg">{error}</p>
+          </div>
+        ) : activeMembers.length ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {activeMembers.map((member, index) => (
               <motion.div
