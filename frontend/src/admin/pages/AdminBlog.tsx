@@ -197,7 +197,7 @@ OUTPUT FORMAT:
           <h3 className="text-lg font-semibold text-white">Quick Add Blog</h3>
           <small className="text-slate-400">Create a lightweight blog draft quickly</small>
         </div>
-        <QuickAdd />
+        <QuickAdd setSyncMessage={setSyncMessage} />
       </div>
       <div className="rounded-2xl border border-blue-500/30 bg-slate-900/50 p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -264,7 +264,7 @@ OUTPUT FORMAT:
 
 export default AdminBlog
 
-function QuickAdd() {
+function QuickAdd({ setSyncMessage }: { setSyncMessage: (s: string) => void }) {
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ title: '', slug: '', metaTitle: '', metaDescription: '', summary: '', contentHtml: '', status: 'Draft', images: [] as string[] })
 

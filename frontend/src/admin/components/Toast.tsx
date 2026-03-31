@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react'
 
-export type ToastType = 'success' | 'error' | 'info' | 'warning'
+export type ToastType = 'success' | 'error' | 'info' | 'warning' | 'danger'
 
 interface ToastProps {
   type: ToastType
@@ -29,6 +29,7 @@ const Toast = ({ type, message, duration = 3000, onClose }: ToastProps) => {
     error: <AlertCircle className="text-red-500" size={24} />,
     info: <Info className="text-blue-500" size={24} />,
     warning: <AlertTriangle className="text-yellow-500" size={24} />,
+    danger: <AlertCircle className="text-red-500" size={24} />,
   }
   
   const bgColors = {
@@ -36,6 +37,7 @@ const Toast = ({ type, message, duration = 3000, onClose }: ToastProps) => {
     error: 'bg-red-500/10 border-red-500/30',
     info: 'bg-blue-500/10 border-blue-500/30',
     warning: 'bg-yellow-500/10 border-yellow-500/30',
+    danger: 'bg-red-500/10 border-red-500/30',
   }
   
   const textColors = {
@@ -43,6 +45,7 @@ const Toast = ({ type, message, duration = 3000, onClose }: ToastProps) => {
     error: 'text-red-400',
     info: 'text-blue-400',
     warning: 'text-yellow-400',
+    danger: 'text-red-400',
   }
   
   return (
