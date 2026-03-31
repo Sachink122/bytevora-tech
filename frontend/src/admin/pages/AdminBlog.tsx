@@ -268,11 +268,13 @@ function QuickAdd() {
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ title: '', slug: '', metaTitle: '', metaDescription: '', summary: '', contentHtml: '', status: 'Draft', images: [] as string[] })
 
-  const submit = () => {
+  const submit = async () => {
     if (!form.title || !form.slug) return alert('Please provide title and slug')
+
     try {
-      // Try to POST directly to API if user is authenticated; otherwise save locally and trigger sync
       const token = localStorage.getItem('agency_auth_token') || ''
+      if (!token) return alert('You must be logged in to save a blog post.')
+
       const payload = {
         title: form.title,
         slug: form.slug,
@@ -284,85 +286,38 @@ function QuickAdd() {
         published: form.status === 'Published',
       }
 
-      if (token) {
-        // attempt online save
-        fetch(`${API_BASE_URL}/api/admin/blog-posts`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        }).then(async (res) => {
-          if (!res.ok) throw new Error('API save failed')
-          const saved = await res.json()
-          try {
-            const raw = localStorage.getItem('admin-blog') || '[]'
-            const arr = JSON.parse(raw)
-            arr.unshift({ ...saved, createdAt: saved.createdAt || new Date().toISOString() })
-            localStorage.setItem('admin-blog', JSON.stringify(arr))
-            window.dispatchEvent(new CustomEvent('local-storage-update', { detail: { key: 'admin-blog' } }))
-          } catch (e) {
-            console.warn('Failed to write saved post to localStorage', e)
-          }
-          setOpen(false)
-          setForm({ title: '', slug: '', metaTitle: '', metaDescription: '', summary: '', contentHtml: '', status: 'Draft', images: [] })
-          const el = document.getElementById('admin-blog-sync-msg')
-          if (el) el.textContent = 'Saved to server'
-        }).catch(() => {
-          // fallback to local save if network/API fails
-          const raw = localStorage.getItem('admin-blog') || '[]'
-          const arr = JSON.parse(raw)
-          const nextId = arr.length ? Math.max(...arr.map((r: any) => Number(r.id) || 0)) + 1 : Date.now()
-          const item = {
-            id: nextId,
-            createdAt: new Date().toISOString(),
-            title: form.title,
-            slug: form.slug,
-            metaTitle: form.metaTitle,
-            metaDescription: form.metaDescription,
-            summary: form.summary,
-            contentHtml: form.contentHtml,
-            images: form.images || [],
-            status: form.status,
-          }
-          arr.unshift(item)
-          localStorage.setItem('admin-blog', JSON.stringify(arr))
-          window.dispatchEvent(new CustomEvent('local-storage-update', { detail: { key: 'admin-blog' } }))
-          setOpen(false)
-          setForm({ title: '', slug: '', metaTitle: '', metaDescription: '', summary: '', contentHtml: '', status: 'Draft', images: [] })
-          const el = document.getElementById('admin-blog-sync-msg')
-          if (el) el.textContent = 'Saved locally — will sync'
-        })
-      } else {
-        // offline/local save
-        const raw = localStorage.getItem('admin-blog') || '[]'
-        const arr = JSON.parse(raw)
-        const nextId = arr.length ? Math.max(...arr.map((r: any) => Number(r.id) || 0)) + 1 : Date.now()
-        const item = {
-          id: nextId,
-          createdAt: new Date().toISOString(),
-          title: form.title,
-          slug: form.slug,
-          metaTitle: form.metaTitle,
-          metaDescription: form.metaDescription,
-          summary: form.summary,
-          contentHtml: form.contentHtml,
-          images: form.images || [],
-          status: form.status,
-        }
-        arr.unshift(item)
-        localStorage.setItem('admin-blog', JSON.stringify(arr))
-        // notify sync watcher
-        window.dispatchEvent(new CustomEvent('local-storage-update', { detail: { key: 'admin-blog' } }))
-        setOpen(false)
-        setForm({ title: '', slug: '', metaTitle: '', metaDescription: '', summary: '', contentHtml: '', status: 'Draft', images: [] })
-        const el = document.getElementById('admin-blog-sync-msg')
-        if (el) el.textContent = 'Saved locally — syncing...'
+      console.log('Sending blog:', payload)
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/blog-posts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        let msg = 'Blog save failed'
+        try {
+          const err = await res.json()
+          msg = err?.message || msg
+        } catch {}
+        setSyncMessage(msg)
+        return
       }
-    } catch (err) {
+
+      const saved = await res.json()
+      // notify manager UI to prepend the saved post
+      window.dispatchEvent(new CustomEvent('admin-blog-updated', { detail: saved }))
+
+      setOpen(false)
+      setForm({ title: '', slug: '', metaTitle: '', metaDescription: '', summary: '', contentHtml: '', status: 'Draft', images: [] })
+      setSyncMessage('Saved to server')
+      setTimeout(() => setSyncMessage(''), 2000)
+    } catch (err: any) {
       console.error('QuickAdd save failed', err)
-      alert('Failed to save draft locally')
+      setSyncMessage(err?.message || 'Blog save failed')
     }
   }
 

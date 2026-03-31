@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Download, Plus } from 'lucide-react'
 import DataTable from './DataTable'
 import Modal from './Modal'
@@ -40,6 +40,8 @@ const formatDate = (value: string) => {
   return date.toLocaleDateString()
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+
 const AdminSimpleManager = ({
   title,
   description,
@@ -49,7 +51,49 @@ const AdminSimpleManager = ({
   statusOptions = ['Active', 'Inactive'],
   addButtonLabel = 'Add Item',
 }: AdminSimpleManagerProps) => {
-  const [records, setRecords] = useLocalStorageState<RecordItem[]>(storageKey, [])
+  const apiMode = storageKey === 'admin-blog'
+  const localStorageState = useLocalStorageState<RecordItem[]>(storageKey, [])
+  const apiState = useState<RecordItem[]>([])
+  const records = apiMode ? apiState[0] : localStorageState[0]
+  const setRecords = apiMode ? apiState[1] : localStorageState[1]
+
+  useEffect(() => {
+    if (!apiMode) return
+    let mounted = true
+
+    const fetchPosts = async () => {
+      try {
+        const token = localStorage.getItem('agency_auth_token') || ''
+        const resp = await fetch(`${API_BASE_URL}/api/admin/blog-posts`, {
+          headers: token
+            ? {
+                Authorization: `Bearer ${token}`,
+              }
+            : undefined,
+        })
+        if (!resp.ok) return
+        const data = (await resp.json()) as RecordItem[]
+        if (mounted) setRecords(data)
+      } catch (e) {
+        // ignore — UI will show existing state if any
+      }
+    }
+
+    void fetchPosts()
+
+    const onUpdated = (ev: Event) => {
+      const ce = ev as CustomEvent
+      const saved = ce.detail as RecordItem
+      setRecords((prev) => [saved, ...(prev || [])])
+    }
+
+    window.addEventListener('admin-blog-updated', onUpdated as EventListener)
+
+    return () => {
+      mounted = false
+      window.removeEventListener('admin-blog-updated', onUpdated as EventListener)
+    }
+  }, [apiMode, setRecords])
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [selectedRecord, setSelectedRecord] = useState<RecordItem | null>(null)
@@ -99,6 +143,46 @@ const AdminSimpleManager = ({
 
   const addRecord = () => {
     if (!validate(newForm)) return
+    // If admin blog is backed by API, POST to API instead of using localStorage
+    if (apiMode) {
+      ;(async () => {
+        try {
+          const token = localStorage.getItem('agency_auth_token') || ''
+          if (!token) {
+            setToast({ type: 'warning', message: 'You must be logged in to add blog posts.' })
+            return
+          }
+
+          const payload: any = { ...newForm, status: newStatus }
+          // map form keys to API fields if necessary
+          if (payload.contentHtml) payload.content = payload.contentHtml
+
+          const resp = await fetch(`${API_BASE_URL}/api/admin/blog-posts`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(payload),
+          })
+
+          if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}))
+            setToast({ type: 'error', message: `Save failed: ${err?.message || resp.statusText}` })
+            return
+          }
+
+          const saved = await resp.json()
+          setRecords((prev) => [saved as RecordItem, ...prev])
+          setIsAddOpen(false)
+          resetNewForm()
+          setToast({ type: 'success', message: `${title} item added.` })
+        } catch (e) {
+          setToast({ type: 'error', message: `Save failed: ${(e as Error).message}` })
+        }
+      })()
+      return
+    }
 
     const nextId = records.length ? Math.max(...records.map((item) => item.id)) + 1 : 1
     const item: RecordItem = {

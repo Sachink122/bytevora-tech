@@ -111,6 +111,7 @@ interface MessageRecord {
 }
 
 const Home = () => {
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
   const [contactFirstName, setContactFirstName] = useState('')
   const [contactLastName, setContactLastName] = useState('')
   const [contactEmail, setContactEmail] = useState('')

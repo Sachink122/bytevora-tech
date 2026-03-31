@@ -129,7 +129,7 @@ const AdminLeads = () => {
         const res = await fetch(`${API_BASE_URL}/api/leads`, { method: 'POST', headers, body: JSON.stringify(payload) })
         if (!res.ok) {
           const body = await res.json().catch(() => ({}))
-          setToast({ type: 'danger', message: `Failed to save lead: ${body?.message || res.status}` })
+          setToast({ type: 'error', message: `Failed to save lead: ${body?.message || res.status}` })
           return
         }
 
@@ -171,7 +171,7 @@ const AdminLeads = () => {
         })
       } catch (err) {
         console.error('Add lead error', err)
-        setToast({ type: 'danger', message: 'Failed to save lead (network error)' })
+        setToast({ type: 'error', message: 'Failed to save lead (network error)' })
       }
     })()
   }
@@ -464,9 +464,9 @@ const AdminLeads = () => {
       <ConfirmModal
         isOpen={!!leadToDelete}
         title="Delete Lead"
-        message={leadToDelete ? `Are you sure you want to delete ${leadToDelete.name}?` : ''}
+        message={leadToDelete ? `Are you sure you want to delete ${leadToDelete.firstName || ''} ${leadToDelete.lastName || ''}?` : ''}
         subjectLabel="Lead"
-        subjectValue={leadToDelete?.name}
+        subjectValue={leadToDelete ? `${leadToDelete.firstName || ''} ${leadToDelete.lastName || ''}` : ''}
         confirmLabel="Delete"
         variant="danger"
         onCancel={() => setLeadToDelete(null)}
