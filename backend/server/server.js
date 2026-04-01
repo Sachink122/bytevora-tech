@@ -155,6 +155,80 @@ app.get('/api/blog-posts', async (_req, res) => {
   }
 })
 
+// Admin: Get blog posts (admin view)
+app.get('/api/admin/blog-posts', requireAuth, async (_req, res) => {
+  try {
+    const posts = await db.select().from(blogPosts)
+    return res.json(posts)
+  } catch (error) {
+    console.error('GET /api/admin/blog-posts failed', error)
+    return res.status(500).json({ message: 'Failed to fetch admin blog posts' })
+  }
+})
+
+// Admin: Create a blog post
+app.post('/api/admin/blog-posts', requireAuth, async (req, res) => {
+  const payload = req.body || {}
+  try {
+    const insert = await db.insert(blogPosts).values({
+      title: payload.title || null,
+      slug: payload.slug || null,
+      meta_title: payload.metaTitle || payload.meta_title || null,
+      meta_description: payload.metaDescription || payload.meta_description || null,
+      summary: payload.summary || null,
+      content: payload.content || null,
+      images: JSON.stringify(payload.images || []),
+      published: !!payload.published,
+    }).returning()
+
+    return res.status(201).json(insert?.[0] ?? null)
+  } catch (error) {
+    console.error('POST /api/admin/blog-posts failed', error?.stack || error)
+    return res.status(500).json({ message: 'Failed to save blog post', error: String(error?.message) })
+  }
+})
+
+// Admin: Sync multiple blog posts (upsert by slug)
+app.post('/api/admin/blog-posts/sync', requireAuth, async (req, res) => {
+  const posts = Array.isArray(req.body?.posts) ? req.body.posts : []
+  try {
+    const results = []
+    for (const p of posts) {
+      if (!p?.slug) continue
+      const existing = await db.select().from(blogPosts).where(blogPosts.slug.eq(p.slug))
+      if (existing?.length) {
+        await db.update(blogPosts).set({
+          title: p.title || existing[0].title,
+          meta_title: p.metaTitle || p.meta_title || existing[0].meta_title,
+          meta_description: p.metaDescription || p.meta_description || existing[0].meta_description,
+          summary: p.summary || existing[0].summary,
+          content: p.content || existing[0].content,
+          images: JSON.stringify(p.images || JSON.parse(existing[0].images || '[]')),
+          published: typeof p.published === 'boolean' ? p.published : existing[0].published,
+        }).where(blogPosts.slug.eq(p.slug))
+        results.push({ slug: p.slug, action: 'updated' })
+      } else {
+        await db.insert(blogPosts).values({
+          title: p.title || null,
+          slug: p.slug,
+          meta_title: p.metaTitle || p.meta_title || null,
+          meta_description: p.metaDescription || p.meta_description || null,
+          summary: p.summary || null,
+          content: p.content || null,
+          images: JSON.stringify(p.images || []),
+          published: !!p.published,
+        })
+        results.push({ slug: p.slug, action: 'inserted' })
+      }
+    }
+
+    return res.json({ ok: true, results })
+  } catch (error) {
+    console.error('POST /api/admin/blog-posts/sync failed', error?.stack || error)
+    return res.status(500).json({ message: 'Failed to sync blog posts', error: String(error?.message) })
+  }
+})
+
 // Leads: POST public (save a lead), GET requires auth
 app.get('/api/leads', requireAuth, async (_req, res) => {
   try {
