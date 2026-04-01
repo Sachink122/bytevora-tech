@@ -9,6 +9,7 @@ import { useLocalStorageState } from '../hooks/useLocalStorageState'
 
 interface Lead {
   id: number
+  name?: string
   firstName?: string
   lastName?: string
   email?: string
