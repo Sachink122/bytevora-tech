@@ -7,14 +7,15 @@ dotenv.config();
 
 const { Pool } = pg;
 
-const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.STORAGE_URL || '';
+// Use only DATABASE_URL for connections in production to avoid conflicts
+const connectionString = process.env.DATABASE_URL || '';
 
-// Enable SSL if PG_SSL is explicitly set, or if the connection string
-// indicates SSL is required (e.g. '?sslmode=require') or if using Neon.
-const useSsl =
-  String(process.env.PG_SSL || 'false').toLowerCase() === 'true' ||
-  /sslmode=requi(re|re)/i.test(connectionString) ||
-  /neon\.tech/i.test(connectionString);
+// Default to SSL enabled for Supabase unless explicitly set to 'false'
+const useSsl = String(process.env.PG_SSL ?? 'true').toLowerCase() === 'true';
+
+if (!connectionString) {
+  throw new Error('Missing required environment variable DATABASE_URL')
+}
 
 // Reuse a global pool in serverless environments to avoid exhausting
 // database connections on cold starts / repeated imports.

@@ -153,8 +153,10 @@ app.get('/api/team', async (_req, res) => {
 // Public: Get blog posts
 app.get('/api/blog-posts', async (req, res) => {
   try {
-    const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.DATABASE_POSTGRES_URL
-    const client = new pg.Client({ connectionString, ssl: { rejectUnauthorized: false } })
+    const connectionString = process.env.DATABASE_URL
+    if (!connectionString) return res.status(500).json({ message: 'DATABASE_URL is not configured' })
+    const useSsl = String(process.env.PG_SSL ?? 'true').toLowerCase() === 'true'
+    const client = new pg.Client({ connectionString, ssl: useSsl ? { rejectUnauthorized: false } : undefined })
     await client.connect()
     const result = await client.query(`
       SELECT id, title, slug, content, meta_title, meta_description, summary, images, published, created_at
@@ -191,8 +193,10 @@ app.get('/api/blog-posts', async (req, res) => {
 // DEBUG: Report DB counts and sample rows (temporary - for diagnostics)
 app.get('/api/debug/db-status', async (_req, res) => {
   try {
-    const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.DATABASE_POSTGRES_URL
-    const client = new pg.Client({ connectionString, ssl: { rejectUnauthorized: false } })
+    const connectionString = process.env.DATABASE_URL
+    if (!connectionString) return res.status(500).json({ message: 'DATABASE_URL is not configured' })
+    const useSsl = String(process.env.PG_SSL ?? 'true').toLowerCase() === 'true'
+    const client = new pg.Client({ connectionString, ssl: useSsl ? { rejectUnauthorized: false } : undefined })
     await client.connect()
     const tCount = await client.query('SELECT COUNT(*) AS cnt FROM team_members')
     const tSample = await client.query('SELECT id, name, role, email, status FROM team_members ORDER BY id LIMIT 5')
@@ -210,8 +214,10 @@ app.get('/api/debug/db-status', async (_req, res) => {
 // DEBUG: Run raw blog_posts query to capture runtime errors (temporary)
 app.get('/api/debug/blog-raw', async (_req, res) => {
   try {
-    const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.DATABASE_POSTGRES_URL
-    const client = new pg.Client({ connectionString, ssl: { rejectUnauthorized: false } })
+    const connectionString = process.env.DATABASE_URL
+    if (!connectionString) return res.status(500).json({ message: 'DATABASE_URL is not configured' })
+    const useSsl = String(process.env.PG_SSL ?? 'true').toLowerCase() === 'true'
+    const client = new pg.Client({ connectionString, ssl: useSsl ? { rejectUnauthorized: false } : undefined })
     await client.connect()
     const rows = await client.query('SELECT * FROM blog_posts WHERE published = true')
     await client.end()
