@@ -148,7 +148,22 @@ app.get('/api/team', async (_req, res) => {
 // Public: Get blog posts
 app.get('/api/blog-posts', async (_req, res) => {
   try {
-    const posts = await db.select().from(blogPosts)
+    // Return only published posts to public API and normalize keys
+    const rows = await db.select().from(blogPosts).where(blogPosts.published.eq(true))
+    const posts = (rows || []).map((r) => ({
+      id: r.id,
+      title: r.title,
+      slug: r.slug,
+      metaTitle: r.metaTitle || r.meta_title || null,
+      metaDescription: r.metaDescription || r.meta_description || null,
+      summary: r.summary,
+      content: r.content,
+      images: (() => { try { return JSON.parse(r.images || '[]') } catch { return [] } })(),
+      published: !!r.published,
+      status: r.published ? 'Published' : 'Draft',
+      createdAt: r.createdAt || r.created_at,
+    }))
+
     return res.json(posts)
   } catch (error) {
     console.error('GET /api/blog-posts failed', error)
@@ -178,7 +193,21 @@ app.get('/api/debug/db-status', async (_req, res) => {
 // Admin: Get blog posts (admin view)
 app.get('/api/admin/blog-posts', requireAuth, async (_req, res) => {
   try {
-    const posts = await db.select().from(blogPosts)
+    const rows = await db.select().from(blogPosts)
+    const posts = (rows || []).map((r) => ({
+      id: r.id,
+      title: r.title,
+      slug: r.slug,
+      metaTitle: r.metaTitle || r.meta_title || null,
+      metaDescription: r.metaDescription || r.meta_description || null,
+      summary: r.summary,
+      content: r.content,
+      images: (() => { try { return JSON.parse(r.images || '[]') } catch { return [] } })(),
+      published: !!r.published,
+      status: r.published ? 'Published' : 'Draft',
+      createdAt: r.createdAt || r.created_at,
+    }))
+
     return res.json(posts)
   } catch (error) {
     console.error('GET /api/admin/blog-posts failed', error)
@@ -190,18 +219,34 @@ app.get('/api/admin/blog-posts', requireAuth, async (_req, res) => {
 app.post('/api/admin/blog-posts', requireAuth, async (req, res) => {
   const payload = req.body || {}
   try {
+    const published = payload.published === true || String(payload.status || '').toLowerCase() === 'published'
     const insert = await db.insert(blogPosts).values({
       title: payload.title || null,
       slug: payload.slug || null,
-      meta_title: payload.metaTitle || payload.meta_title || null,
-      meta_description: payload.metaDescription || payload.meta_description || null,
+      metaTitle: payload.metaTitle || payload.meta_title || null,
+      metaDescription: payload.metaDescription || payload.meta_description || null,
       summary: payload.summary || null,
       content: payload.content || null,
       images: JSON.stringify(payload.images || []),
-      published: !!payload.published,
+      published: published,
     }).returning()
 
-    return res.status(201).json(insert?.[0] ?? null)
+    const r = insert?.[0]
+    const out = r ? {
+      id: r.id,
+      title: r.title,
+      slug: r.slug,
+      metaTitle: r.metaTitle || r.meta_title || null,
+      metaDescription: r.metaDescription || r.meta_description || null,
+      summary: r.summary,
+      content: r.content,
+      images: (() => { try { return JSON.parse(r.images || '[]') } catch { return [] } })(),
+      published: !!r.published,
+      status: r.published ? 'Published' : 'Draft',
+      createdAt: r.createdAt || r.created_at,
+    } : null
+
+    return res.status(201).json(out)
   } catch (error) {
     console.error('POST /api/admin/blog-posts failed', error?.stack || error)
     return res.status(500).json({ message: 'Failed to save blog post', error: String(error?.message) })
@@ -215,24 +260,24 @@ app.post('/api/admin/blog-posts/sync', requireAuth, async (req, res) => {
     const results = []
     for (const p of posts) {
       if (!p?.slug) continue
-      const existing = await db.select().from(blogPosts).where(blogPosts.slug.eq(p.slug))
+      const existing = await db.select().from(blogPosts).where(eq(blogPosts.slug, p.slug))
       if (existing?.length) {
         await db.update(blogPosts).set({
           title: p.title || existing[0].title,
-          meta_title: p.metaTitle || p.meta_title || existing[0].meta_title,
-          meta_description: p.metaDescription || p.meta_description || existing[0].meta_description,
+          metaTitle: p.metaTitle || p.meta_title || existing[0].metaTitle || existing[0].meta_title,
+          metaDescription: p.metaDescription || p.meta_description || existing[0].metaDescription || existing[0].meta_description,
           summary: p.summary || existing[0].summary,
           content: p.content || existing[0].content,
           images: JSON.stringify(p.images || JSON.parse(existing[0].images || '[]')),
           published: typeof p.published === 'boolean' ? p.published : existing[0].published,
-        }).where(blogPosts.slug.eq(p.slug))
+        }).where(eq(blogPosts.slug, p.slug))
         results.push({ slug: p.slug, action: 'updated' })
       } else {
         await db.insert(blogPosts).values({
           title: p.title || null,
           slug: p.slug,
-          meta_title: p.metaTitle || p.meta_title || null,
-          meta_description: p.metaDescription || p.meta_description || null,
+          metaTitle: p.metaTitle || p.meta_title || null,
+          metaDescription: p.metaDescription || p.meta_description || null,
           summary: p.summary || null,
           content: p.content || null,
           images: JSON.stringify(p.images || []),
@@ -287,7 +332,19 @@ app.post('/api/admin/seed-defaults', requireAuth, async (_req, res) => {
 // Leads: POST public (save a lead), GET requires auth
 app.get('/api/leads', requireAuth, async (_req, res) => {
   try {
-    const all = await db.select().from(leads)
+    const rows = await db.select().from(leads)
+    const all = (rows || []).map((r) => ({
+      id: r.id,
+      firstName: r.first_name || null,
+      lastName: r.last_name || null,
+      email: r.email,
+      phone: r.phone,
+      service: r.service,
+      budget: r.budget,
+      projectDetails: r.project_details || null,
+      status: r.status,
+      createdAt: r.created_at || r.createdAt,
+    }))
     return res.json(all)
   } catch (error) {
     console.error('GET /api/leads failed', error?.stack || error)
@@ -304,10 +361,25 @@ app.post('/api/leads', async (req, res) => {
       email: payload.email || null,
       phone: payload.phone || null,
       service: payload.service || null,
-      project_details: payload.project_details || payload.details || null,
+      project_details: payload.projectDetails || payload.project_details || payload.details || null,
+      budget: payload.budget || null,
     }).returning()
 
-    return res.status(201).json({ lead: insert?.[0] ?? null })
+    const r = insert?.[0]
+    const lead = r ? {
+      id: r.id,
+      firstName: r.first_name,
+      lastName: r.last_name,
+      email: r.email,
+      phone: r.phone,
+      service: r.service,
+      budget: r.budget,
+      projectDetails: r.project_details,
+      status: r.status,
+      createdAt: r.created_at,
+    } : null
+
+    return res.status(201).json({ lead })
   } catch (error) {
     console.error('POST /api/leads failed', error?.stack || error)
     return res.status(500).json({ message: 'Failed to save lead', error: String(error?.message), stack: error?.stack })
