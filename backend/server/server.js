@@ -154,7 +154,18 @@ app.get('/api/team', async (_req, res) => {
   } catch (error) {
     console.error('GET /api/team failed', error?.stack || error)
     try { console.error('ERR_FULL', util.inspect(error, { depth: 5 })) } catch (e) { /* ignore */ }
-    return res.status(500).json({ message: 'Failed to fetch team members', error: String(error?.message), stack: error?.stack })
+    // Fallback: try a raw pg query in case drizzle fails in this environment
+    try {
+      const { Client } = await import('pg')
+      const client = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
+      await client.connect()
+      const r = await client.query('SELECT id, name, role, email, phone, skills, status, created FROM team_members')
+      await client.end()
+      return res.json(r.rows)
+    } catch (rawErr) {
+      console.error('RAW_FALLBACK_FAILED', rawErr?.stack || rawErr)
+      return res.status(500).json({ message: 'Failed to fetch team members', error: String(error?.message), stack: error?.stack })
+    }
   }
 })
 
@@ -165,7 +176,17 @@ app.get('/api/blog-posts', async (_req, res) => {
     return res.json(posts)
   } catch (error) {
     console.error('GET /api/blog-posts failed', error?.stack || error)
-    return res.status(500).json({ message: 'Failed to fetch blog posts', error: String(error?.message), stack: error?.stack })
+    try {
+      const { Client } = await import('pg')
+      const client = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
+      await client.connect()
+      const r = await client.query('SELECT id, title, slug, meta_title as "metaTitle", meta_description as "metaDescription", summary, content, images, published, created_at as "createdAt" FROM blog_posts')
+      await client.end()
+      return res.json(r.rows)
+    } catch (rawErr) {
+      console.error('RAW_FALLBACK_FAILED blog-posts', rawErr?.stack || rawErr)
+      return res.status(500).json({ message: 'Failed to fetch blog posts', error: String(error?.message), stack: error?.stack })
+    }
   }
 })
 
@@ -198,6 +219,7 @@ app.post('/api/leads', async (req, res) => {
     return res.status(500).json({ message: 'Failed to save lead', error: String(error?.message), stack: error?.stack })
   }
 })
+
 
 // Global error handlers to capture unhandled rejections / exceptions in logs
 process.on('unhandledRejection', (reason) => {
