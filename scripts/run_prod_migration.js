@@ -5,7 +5,7 @@ import dotenv from 'dotenv'
 dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || '.env' })
 
 const sql = fs.readFileSync('drizzle/ensure_schema_v2.sql', 'utf8')
-const connectionString = process.env.DATABASE_URL || process.env.DATABASE_POSTGRES_URL
+const connectionString = process.env.DATABASE_URL
 
 if (!connectionString) {
   console.error('No DATABASE_URL found in environment')

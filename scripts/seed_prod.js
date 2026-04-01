@@ -3,7 +3,7 @@ import { Client } from 'pg'
 
 dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || '.env' })
 
-const connectionString = process.env.DATABASE_URL || process.env.DATABASE_POSTGRES_URL
+const connectionString = process.env.DATABASE_URL
 if (!connectionString) {
   console.error('No DATABASE_URL found in environment')
   process.exit(1)
