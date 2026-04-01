@@ -136,6 +136,17 @@ app.get('/api/health', (_req, res) => {
 // Public: Get all team members
 app.get('/api/team', async (_req, res) => {
   try {
+    // Debug: verify we can make a raw PG connection from the serverless function
+    try {
+      const { Client } = await import('pg')
+      const client = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
+      await client.connect()
+      const check = await client.query('SELECT 1 as ok')
+      console.log('DB_CONN_CHECK', check.rows)
+      await client.end()
+    } catch (connErr) {
+      console.error('DB_CONN_CHECK_FAILED', connErr?.stack || connErr)
+    }
     const members = await db.select().from(teamMembers)
     return res.json(members)
   } catch (error) {
