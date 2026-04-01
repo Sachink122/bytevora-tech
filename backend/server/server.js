@@ -139,7 +139,7 @@ app.get('/api/team', async (_req, res) => {
     const members = await db.select().from(teamMembers)
     return res.json(members)
   } catch (error) {
-    console.error('GET /api/team failed', error)
+    console.error('GET /api/team failed', error?.stack || error)
     return res.status(500).json({ message: 'Failed to fetch team members' })
   }
 })
@@ -150,7 +150,7 @@ app.get('/api/blog-posts', async (_req, res) => {
     const posts = await db.select().from(blogPosts)
     return res.json(posts)
   } catch (error) {
-    console.error('GET /api/blog-posts failed', error)
+    console.error('GET /api/blog-posts failed', error?.stack || error)
     return res.status(500).json({ message: 'Failed to fetch blog posts' })
   }
 })
@@ -161,7 +161,7 @@ app.get('/api/leads', requireAuth, async (_req, res) => {
     const all = await db.select().from(leads)
     return res.json(all)
   } catch (error) {
-    console.error('GET /api/leads failed', error)
+    console.error('GET /api/leads failed', error?.stack || error)
     return res.status(500).json({ message: 'Failed to fetch leads' })
   }
 })
@@ -180,9 +180,18 @@ app.post('/api/leads', async (req, res) => {
 
     return res.status(201).json({ lead: insert?.[0] ?? null })
   } catch (error) {
-    console.error('POST /api/leads failed', error)
+    console.error('POST /api/leads failed', error?.stack || error)
     return res.status(500).json({ message: 'Failed to save lead' })
   }
+})
+
+// Global error handlers to capture unhandled rejections / exceptions in logs
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Rejection:', reason?.stack || reason)
+})
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err?.stack || err)
 })
 
 app.post('/api/auth/login', (req, res) => {
