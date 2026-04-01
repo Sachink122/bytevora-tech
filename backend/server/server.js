@@ -134,6 +134,8 @@ app.get('/api/health', (_req, res) => {
 })
 
 // Public: Get all team members
+import util from 'util'
+
 app.get('/api/team', async (_req, res) => {
   try {
     // Debug: verify we can make a raw PG connection from the serverless function
@@ -151,6 +153,7 @@ app.get('/api/team', async (_req, res) => {
     return res.json(members)
   } catch (error) {
     console.error('GET /api/team failed', error?.stack || error)
+    try { console.error('ERR_FULL', util.inspect(error, { depth: 5 })) } catch (e) { /* ignore */ }
     return res.status(500).json({ message: 'Failed to fetch team members', error: String(error?.message), stack: error?.stack })
   }
 })
