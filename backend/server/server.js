@@ -14,6 +14,8 @@ dotenv.config()
 
 // Temporary in-memory store for last admin error (for debugging only)
 let lastAdminError = null
+// Temporary store for last admin POST attempt (headers + payload snippet)
+let lastAdminAttempt = null
 
 const app = express()
 const PORT = Number(process.env.AUTH_API_PORT || 4000)
@@ -217,6 +219,11 @@ app.get('/api/debug/last-admin-error', (_req, res) => {
   return res.json({ lastAdminError })
 })
 
+// Debug: expose last admin attempt (temporary)
+app.get('/api/debug/last-admin-attempt', (_req, res) => {
+  return res.json({ lastAdminAttempt })
+})
+
 // Backwards-compat: redirect admin GET requests to the unified public endpoints
 app.get('/api/admin/blog-posts', (_req, res) => {
   return res.redirect(307, '/api/blog-posts')
@@ -271,6 +278,13 @@ app.delete('/api/admin/team/:id', requireAuth, async (req, res) => {
 // Admin: Create a blog post
 app.post('/api/admin/blog-posts', requireAuth, async (req, res) => {
   const payload = req.body || {}
+  try {
+    lastAdminAttempt = {
+      time: new Date().toISOString(),
+      authHeaderPresent: !!req.headers.authorization,
+      payloadSnippet: (() => { try { return JSON.stringify(payload).slice(0, 2000) } catch { return null } })(),
+    }
+  } catch (_) {}
   try {
     console.log('/api/admin/blog-posts called. authHeaderPresent=', !!req.headers.authorization, 'payloadKeys=', Object.keys(payload))
     const published = payload.published === true || String(payload.status || '').toLowerCase() === 'published'
