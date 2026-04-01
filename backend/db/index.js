@@ -3,7 +3,12 @@ import pg from 'pg';
 import * as schema from './schema.js';
 import dotenv from 'dotenv';
 
-dotenv.config();
+// Load environment from .env only when running locally / non-production
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config();
+} else {
+  console.log('DB init: production runtime — skipping dotenv.load')
+}
 
 const { Pool } = pg;
 

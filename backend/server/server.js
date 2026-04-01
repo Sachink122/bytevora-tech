@@ -10,7 +10,16 @@ import { db } from '../db/index.js'
 import { teamMembers, blogPosts, leads } from '../db/schema.js'
 import { eq } from 'drizzle-orm'
 
-dotenv.config()
+// Load .env only in non-production environments so Vercel runtime uses platform envs
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config()
+} else {
+  // In production, rely on platform-provided environment variables (Vercel)
+  console.log('Production runtime detected — skipping dotenv load')
+}
+
+// Log presence of critical DB env for easier debugging in production logs
+console.log('DB URL exists:', !!process.env.DATABASE_URL)
 
 // Warn if conflicting DB env variables are present (helps detect misconfiguration)
 ;(function warnConflictingEnv() {
