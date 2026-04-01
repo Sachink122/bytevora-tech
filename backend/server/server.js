@@ -306,6 +306,27 @@ app.get('/api/_debug/raw-team', async (_req, res) => {
   }
 })
 
+// Debug: run migration SQL from the repo against the configured DB.
+// Only runs when RUN_MIGRATIONS env var is set to 'true'.
+app.post('/api/_debug/run-migrations', async (_req, res) => {
+  if (process.env.RUN_MIGRATIONS !== 'true') {
+    return res.status(403).json({ message: 'Migrations disabled' })
+  }
+  try {
+    const fs = await import('fs')
+    const sql = fs.readFileSync('drizzle/ensure_schema_v2.sql', 'utf8')
+    const { Client } = await import('pg')
+    const client = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
+    await client.connect()
+    await client.query(sql)
+    await client.end()
+    return res.json({ ok: true })
+  } catch (err) {
+    console.error('MIGRATION_RUN_FAILED', err?.stack || err)
+    return res.status(500).json({ message: 'Migration failed', error: String(err?.message), stack: err?.stack })
+  }
+})
+
 app.get('/api/auth/me', requireAuth, (req, res) => {
   if (req.auth?.email?.toLowerCase() !== adminUser.email.toLowerCase()) {
     return res.status(401).json({ message: 'User no longer available' })
