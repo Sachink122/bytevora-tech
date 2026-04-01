@@ -12,6 +12,24 @@ import { eq } from 'drizzle-orm'
 
 dotenv.config()
 
+// Warn if conflicting DB env variables are present (helps detect misconfiguration)
+;(function warnConflictingEnv() {
+  const keys = Object.keys(process.env)
+  const conflictPatterns = [
+    'DATABASE_POSTGRES',
+    'DATABASE_PG',
+    'DATABASE_NEON',
+    'DATABASE_PGHOST',
+    'STORAGE_URL',
+    'supab_',
+  ]
+  const found = keys.filter((k) => conflictPatterns.some((p) => k.includes(p)))
+  if (found.length) {
+    console.warn('Warning: Found potentially conflicting DB-related env vars:', found.join(', '))
+    console.warn('Recommended: keep only `DATABASE_URL` for production and remove the others to avoid connection conflicts.')
+  }
+})()
+
 // Temporary in-memory store for last admin error (for debugging only)
 let lastAdminError = null
 // Temporary store for last admin POST attempt (headers + payload snippet)
