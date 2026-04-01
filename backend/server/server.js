@@ -291,6 +291,21 @@ app.get('/api/_debug/env', (_req, res) => {
   return res.json({ hasDB, hostSample: hostSample ? `...${hostSample.slice(-50)}` : null, hasPG_SSL: process.env.PG_SSL || null })
 })
 
+// Debug: raw pg query endpoint to verify direct DB access from production
+app.get('/api/_debug/raw-team', async (_req, res) => {
+  try {
+    const { Client } = await import('pg')
+    const client = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
+    await client.connect()
+    const r = await client.query('SELECT id, name, role FROM team_members LIMIT 5')
+    await client.end()
+    return res.json({ rows: r.rows })
+  } catch (err) {
+    console.error('RAW_TEAM_ERR', err?.stack || err)
+    return res.status(500).json({ message: 'raw-team failed', error: String(err?.message), stack: err?.stack })
+  }
+})
+
 app.get('/api/auth/me', requireAuth, (req, res) => {
   if (req.auth?.email?.toLowerCase() !== adminUser.email.toLowerCase()) {
     return res.status(401).json({ message: 'User no longer available' })
