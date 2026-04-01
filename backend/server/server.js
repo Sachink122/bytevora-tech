@@ -295,10 +295,19 @@ app.post('/api/admin/blog-posts', requireAuth, async (req, res) => {
   } catch (_) {}
   try {
     console.log('/api/admin/blog-posts called. authHeaderPresent=', !!req.headers.authorization, 'payloadKeys=', Object.keys(payload))
+
+    // Basic sanitization and validation for slug to avoid SQL/driver issues
+    const rawSlug = String(payload.slug || '').trim()
+    // remove characters that commonly break SQL/URLs (quotes, semicolons)
+    const sanitizedSlug = rawSlug.replace(/["'`;\\]/g, '') || null
+    // fallback: generate a simple slug from title if not provided
+    const makeSlugFromTitle = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')
+    const finalSlug = sanitizedSlug || makeSlugFromTitle(payload.title) || null
+
     const published = payload.published === true || String(payload.status || '').toLowerCase() === 'published'
     const insert = await db.insert(blogPosts).values({
       title: payload.title || null,
-      slug: payload.slug || null,
+      slug: finalSlug,
       metaTitle: payload.metaTitle || payload.meta_title || null,
       metaDescription: payload.metaDescription || payload.meta_description || null,
       summary: payload.summary || null,
