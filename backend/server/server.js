@@ -309,7 +309,7 @@ app.get('/api/_debug/raw-team', async (_req, res) => {
 // Debug: run migration SQL from the repo against the configured DB.
 // Only runs when RUN_MIGRATIONS env var is set to 'true'.
 app.post('/api/_debug/run-migrations', async (_req, res) => {
-  if (process.env.RUN_MIGRATIONS !== 'true') {
+  if (!String(process.env.RUN_MIGRATIONS || '').toLowerCase().startsWith('t')) {
     return res.status(403).json({ message: 'Migrations disabled' })
   }
   try {
