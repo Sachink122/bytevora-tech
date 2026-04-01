@@ -153,24 +153,17 @@ app.get('/api/team', async (_req, res) => {
 // Public: Get blog posts
 app.get('/api/blog-posts', async (req, res) => {
   try {
-    const result = await db.query(`
-      SELECT
-        id,
-        title,
-        slug,
-        content,
-        meta_title,
-        meta_description,
-        summary,
-        images,
-        published,
-        created_at
+    const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.DATABASE_POSTGRES_URL
+    const client = new pg.Client({ connectionString, ssl: { rejectUnauthorized: false } })
+    await client.connect()
+    const result = await client.query(`
+      SELECT id, title, slug, content, meta_title, meta_description, summary, images, published, created_at
       FROM blog_posts
       ORDER BY created_at DESC
     `)
+    await client.end()
 
     const rows = (result && result.rows) ? result.rows : []
-
     const out = rows.map((r) => ({
       id: r.id,
       title: r.title,
@@ -190,7 +183,7 @@ app.get('/api/blog-posts', async (req, res) => {
 
     return res.json(out)
   } catch (error) {
-    console.error('GET /api/blog-posts failed (raw query)', error)
+    console.error('GET /api/blog-posts failed (pg client)', error)
     return res.status(500).json({ message: 'Failed to fetch blog posts' })
   }
 })
