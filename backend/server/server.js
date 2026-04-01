@@ -249,6 +249,41 @@ app.post('/api/admin/blog-posts/sync', requireAuth, async (req, res) => {
   }
 })
 
+// Admin: One-time seed defaults (protected) — inserts sample team members and blog posts
+app.post('/api/admin/seed-defaults', requireAuth, async (_req, res) => {
+  try {
+    const teamMembersData = [
+      { name: 'Sachin Gautam', role: 'Founder / Developer', email: 'bytevora1tech@gmail.com', skills: 'React, Node.js, SEO', phone: null, status: 'Active' },
+      { name: 'John Doe', role: 'Senior Developer', email: 'john.doe@example.com', skills: 'React, TypeScript, Node.js', phone: null, status: 'Active' },
+      { name: 'Jane Smith', role: 'Designer', email: 'jane.smith@example.com', skills: 'Figma, UI/UX, CSS', phone: null, status: 'Active' },
+    ]
+
+    const blogPostsData = [
+      { title: 'Launching Our New Agency Website', slug: 'launching-our-new-agency-website', meta_title: 'Launching Our New Agency Website', meta_description: 'Announcing our new site and services', summary: 'We just launched...', content: '<h1>Welcome</h1><p>We launched our new website to showcase our work.</p>', images: JSON.stringify([]), published: true },
+      { title: 'How We Approach SEO', slug: 'how-we-approach-seo', meta_title: 'How We Approach SEO', meta_description: 'Our SEO philosophy and tips', summary: 'SEO basics...', content: '<h1>SEO Strategy</h1><p>We focus on technical SEO and content.</p>', images: JSON.stringify([]), published: true },
+    ]
+
+    for (const t of teamMembersData) {
+      const exists = await db.select().from(teamMembers).where(teamMembers.email.eq(t.email))
+      if (!exists?.length) {
+        await db.insert(teamMembers).values(t)
+      }
+    }
+
+    for (const b of blogPostsData) {
+      const exists = await db.select().from(blogPosts).where(blogPosts.slug.eq(b.slug))
+      if (!exists?.length) {
+        await db.insert(blogPosts).values(b)
+      }
+    }
+
+    return res.json({ ok: true })
+  } catch (err) {
+    console.error('/api/admin/seed-defaults failed', err)
+    return res.status(500).json({ message: 'Seeding failed', error: String(err?.message) })
+  }
+})
+
 // Leads: POST public (save a lead), GET requires auth
 app.get('/api/leads', requireAuth, async (_req, res) => {
   try {
