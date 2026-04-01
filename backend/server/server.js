@@ -149,7 +149,7 @@ app.get('/api/team', async (_req, res) => {
 app.get('/api/blog-posts', async (_req, res) => {
   try {
     // Return only published posts to public API and normalize keys
-    const rows = await db.select().from(blogPosts).where(blogPosts.published.eq(true))
+    const rows = await db.select().from(blogPosts).where(eq(blogPosts.published, true))
     const posts = (rows || []).map((r) => ({
       id: r.id,
       title: r.title,
