@@ -155,6 +155,22 @@ app.get('/api/blog-posts', async (_req, res) => {
   }
 })
 
+// DEBUG: Report DB counts and sample rows (temporary - for diagnostics)
+app.get('/api/debug/db-status', async (_req, res) => {
+  try {
+    const teamCount = await db.select().from(teamMembers).count()
+    const teamSample = await db.select({ id: teamMembers.id, name: teamMembers.name, role: teamMembers.role }).from(teamMembers).limit(5)
+
+    const blogCount = await db.select().from(blogPosts).count()
+    const blogSample = await db.select({ id: blogPosts.id, title: blogPosts.title, slug: blogPosts.slug, published: blogPosts.published }).from(blogPosts).limit(5)
+
+    return res.json({ teamCount: Number(teamCount[0]?.count || 0), teamSample, blogCount: Number(blogCount[0]?.count || 0), blogSample })
+  } catch (err) {
+    console.error('/api/debug/db-status failed', err)
+    return res.status(500).json({ message: 'DB diagnostics failed', error: String(err?.message) })
+  }
+})
+
 // Admin: Get blog posts (admin view)
 app.get('/api/admin/blog-posts', requireAuth, async (_req, res) => {
   try {
