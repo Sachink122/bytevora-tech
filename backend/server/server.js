@@ -192,6 +192,14 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
   return res.json({ user: sanitizeUser(adminUser) })
 })
 
-app.listen(PORT, () => {
-  console.log(`Auth API running on http://localhost:${PORT}`)
-})
+// Only start the HTTP listener when running locally.
+// In serverless environments (Vercel) this module is imported and
+// the framework will handle the request lifecycle — don't call listen().
+if (process.env.RUN_LOCAL === 'true' || process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`Auth API running on http://localhost:${PORT}`)
+  })
+}
+
+// Export the Express app so serverless platforms (Vercel) can use it.
+export default app;
