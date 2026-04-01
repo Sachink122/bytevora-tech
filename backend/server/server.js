@@ -134,38 +134,13 @@ app.get('/api/health', (_req, res) => {
 })
 
 // Public: Get all team members
-import util from 'util'
-
 app.get('/api/team', async (_req, res) => {
   try {
-    // Debug: verify we can make a raw PG connection from the serverless function
-    try {
-      const { Client } = await import('pg')
-      const client = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
-      await client.connect()
-      const check = await client.query('SELECT 1 as ok')
-      console.log('DB_CONN_CHECK', check.rows)
-      await client.end()
-    } catch (connErr) {
-      console.error('DB_CONN_CHECK_FAILED', connErr?.stack || connErr)
-    }
     const members = await db.select().from(teamMembers)
     return res.json(members)
   } catch (error) {
-    console.error('GET /api/team failed', error?.stack || error)
-    try { console.error('ERR_FULL', util.inspect(error, { depth: 5 })) } catch (e) { /* ignore */ }
-    // Fallback: try a raw pg query in case drizzle fails in this environment
-    try {
-      const { Client } = await import('pg')
-      const client = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
-      await client.connect()
-      const r = await client.query('SELECT id, name, role, email, phone, skills, status, created FROM team_members')
-      await client.end()
-      return res.json(r.rows)
-    } catch (rawErr) {
-      console.error('RAW_FALLBACK_FAILED', rawErr?.stack || rawErr)
-      return res.status(500).json({ message: 'Failed to fetch team members', error: String(error?.message), stack: error?.stack })
-    }
+    console.error('GET /api/team failed', error)
+    return res.status(500).json({ message: 'Failed to fetch team members' })
   }
 })
 
@@ -175,18 +150,8 @@ app.get('/api/blog-posts', async (_req, res) => {
     const posts = await db.select().from(blogPosts)
     return res.json(posts)
   } catch (error) {
-    console.error('GET /api/blog-posts failed', error?.stack || error)
-    try {
-      const { Client } = await import('pg')
-      const client = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
-      await client.connect()
-      const r = await client.query('SELECT id, title, slug, meta_title as "metaTitle", meta_description as "metaDescription", summary, content, images, published, created_at as "createdAt" FROM blog_posts')
-      await client.end()
-      return res.json(r.rows)
-    } catch (rawErr) {
-      console.error('RAW_FALLBACK_FAILED blog-posts', rawErr?.stack || rawErr)
-      return res.status(500).json({ message: 'Failed to fetch blog posts', error: String(error?.message), stack: error?.stack })
-    }
+    console.error('GET /api/blog-posts failed', error)
+    return res.status(500).json({ message: 'Failed to fetch blog posts' })
   }
 })
 
@@ -282,126 +247,6 @@ app.post('/api/auth/logout', (_req, res) => {
   currentRefreshToken = null
   clearRefreshCookie(res)
   return res.status(204).send()
-})
-
-// Debug: show presence of important env vars (no secrets)
-app.get('/api/_debug/env', (_req, res) => {
-  const hasDB = !!process.env.DATABASE_URL || !!process.env.DATABASE_POSTGRES_URL
-  const hostSample = (process.env.DATABASE_URL || process.env.DATABASE_POSTGRES_URL || '').split('@')[1] || null
-  return res.json({ hasDB, hostSample: hostSample ? `...${hostSample.slice(-50)}` : null, hasPG_SSL: process.env.PG_SSL || null })
-})
-
-// Debug: raw pg query endpoint to verify direct DB access from production
-app.get('/api/_debug/raw-team', async (_req, res) => {
-  try {
-    const { Client } = await import('pg')
-    const client = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
-    await client.connect()
-    const r = await client.query('SELECT id, name, role FROM team_members LIMIT 5')
-    await client.end()
-    return res.json({ rows: r.rows })
-  } catch (err) {
-    console.error('RAW_TEAM_ERR', err?.stack || err)
-    return res.status(500).json({ message: 'raw-team failed', error: String(err?.message), stack: err?.stack })
-  }
-})
-
-// Debug: run migration SQL from the repo against the configured DB.
-// Only runs when RUN_MIGRATIONS env var is set to 'true'.
-app.post('/api/_debug/run-migrations', async (_req, res) => {
-  if (!String(process.env.RUN_MIGRATIONS || '').toLowerCase().startsWith('t')) {
-    return res.status(403).json({ message: 'Migrations disabled' })
-  }
-  try {
-    const sql = `
-CREATE TABLE IF NOT EXISTS team_members (
-  id serial PRIMARY KEY,
-  name text NOT NULL,
-  role text,
-  email text,
-  phone text,
-  skills text,
-  status varchar(50) DEFAULT 'Active',
-  created timestamp DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS blog_posts (
-  id serial PRIMARY KEY,
-  title text NOT NULL,
-  slug text NOT NULL UNIQUE,
-  meta_title text,
-  meta_description text,
-  summary text,
-  content text,
-  images text,
-  published boolean DEFAULT false,
-  created_at timestamp DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS leads (
-  id serial PRIMARY KEY,
-  first_name text,
-  last_name text,
-  service text,
-  email text NOT NULL,
-  phone text,
-  budget text,
-  project_details text,
-  status varchar(50) DEFAULT 'New',
-  created_at timestamp DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS messages (
-  id serial PRIMARY KEY,
-  sender_name text NOT NULL,
-  email text NOT NULL,
-  subject text,
-  message text NOT NULL,
-  status varchar(50) DEFAULT 'New',
-  created_at timestamp DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS users (
-  id serial PRIMARY KEY,
-  name text NOT NULL,
-  email text NOT NULL UNIQUE,
-  role varchar(50) DEFAULT 'Admin' NOT NULL,
-  password_hash text NOT NULL,
-  created_at timestamp DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS services (
-  id serial PRIMARY KEY,
-  title text NOT NULL,
-  slug text NOT NULL,
-  summary text,
-  description text,
-  icon text,
-  created_at timestamp DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS projects (
-  id serial PRIMARY KEY,
-  title text NOT NULL,
-  category text,
-  description text,
-  image text,
-  project_url text,
-  tags text,
-  status varchar(50) DEFAULT 'Published',
-  created_at timestamp DEFAULT now()
-);
-`
-    const { Client } = await import('pg')
-    const client = new Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
-    await client.connect()
-    await client.query(sql)
-    await client.end()
-    return res.json({ ok: true })
-  } catch (err) {
-    console.error('MIGRATION_RUN_FAILED', err?.stack || err)
-    return res.status(500).json({ message: 'Migration failed', error: String(err?.message), stack: err?.stack })
-  }
 })
 
 app.get('/api/auth/me', requireAuth, (req, res) => {
