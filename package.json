@@ -12,13 +12,13 @@
     "preview": "cd frontend && vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.36.0",
     "@tailwindcss/vite": "^4.2.1",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.2",
-    "@supabase/supabase-js": "^2.36.0",
     "express": "^5.1.0",
     "framer-motion": "^12.35.0",
     "helmet": "^8.1.0",
