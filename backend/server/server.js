@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import dotenv from 'dotenv'
 import cookieParser from 'cookie-parser'
+import pg from 'pg'
 import { db } from '../db/index.js'
 import { teamMembers, blogPosts, leads } from '../db/schema.js'
 import { eq } from 'drizzle-orm'
@@ -158,13 +159,16 @@ app.get('/api/blog-posts', async (_req, res) => {
 // DEBUG: Report DB counts and sample rows (temporary - for diagnostics)
 app.get('/api/debug/db-status', async (_req, res) => {
   try {
-    const teamCount = await db.select().from(teamMembers).count()
-    const teamSample = await db.select({ id: teamMembers.id, name: teamMembers.name, role: teamMembers.role }).from(teamMembers).limit(5)
+    const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.DATABASE_POSTGRES_URL
+    const client = new pg.Client({ connectionString, ssl: { rejectUnauthorized: false } })
+    await client.connect()
+    const tCount = await client.query('SELECT COUNT(*) AS cnt FROM team_members')
+    const tSample = await client.query('SELECT id, name, role, email, status FROM team_members ORDER BY id LIMIT 5')
+    const bCount = await client.query('SELECT COUNT(*) AS cnt FROM blog_posts')
+    const bSample = await client.query('SELECT id, title, slug, published FROM blog_posts ORDER BY id LIMIT 5')
+    await client.end()
 
-    const blogCount = await db.select().from(blogPosts).count()
-    const blogSample = await db.select({ id: blogPosts.id, title: blogPosts.title, slug: blogPosts.slug, published: blogPosts.published }).from(blogPosts).limit(5)
-
-    return res.json({ teamCount: Number(teamCount[0]?.count || 0), teamSample, blogCount: Number(blogCount[0]?.count || 0), blogSample })
+    return res.json({ teamCount: Number(tCount.rows[0]?.cnt || 0), teamSample: tSample.rows, blogCount: Number(bCount.rows[0]?.cnt || 0), blogSample: bSample.rows })
   } catch (err) {
     console.error('/api/debug/db-status failed', err)
     return res.status(500).json({ message: 'DB diagnostics failed', error: String(err?.message) })
