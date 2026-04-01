@@ -159,14 +159,11 @@ app.get('/api/blog-posts', async (req, res) => {
         title,
         slug,
         content,
-        author,
-        status,
-        published,
         meta_title,
         meta_description,
         summary,
         images,
-        publish_date,
+        published,
         created_at
       FROM blog_posts
       ORDER BY created_at DESC
@@ -183,12 +180,11 @@ app.get('/api/blog-posts', async (req, res) => {
       summary: r.summary || null,
       content: r.content || null,
       contentHtml: r.content || null,
-      author: r.author || null,
       images: (() => { try { return JSON.parse(r.images || '[]') } catch { return [] } })(),
       featureImage: (() => { try { const imgs = JSON.parse(r.images || '[]'); return imgs && imgs.length ? imgs[0] : null } catch { return null } })(),
       published: !!r.published,
-      status: r.status || (r.published ? 'Published' : 'Draft'),
-      publishDate: r.publish_date || r.created_at || null,
+      status: r.published ? 'Published' : 'Draft',
+      publishDate: r.created_at || null,
       createdAt: r.created_at || null,
     }))
 
@@ -310,15 +306,12 @@ app.post('/api/admin/blog-posts', requireAuth, async (req, res) => {
     const insert = await db.insert(blogPosts).values({
       title: payload.title || null,
       slug: payload.slug || null,
-      meta_title: payload.metaTitle || payload.meta_title || null,
-      meta_description: payload.metaDescription || payload.meta_description || null,
+      metaTitle: payload.metaTitle || payload.meta_title || null,
+      metaDescription: payload.metaDescription || payload.meta_description || null,
       summary: payload.summary || null,
       content: payload.content || null,
       images: JSON.stringify(payload.images || []),
       published: published,
-      author: payload.author || null,
-      status: payload.status || (published ? 'Published' : 'Draft'),
-      publish_date: payload.publishDate || null,
     }).returning()
 
     const r = insert?.[0]
