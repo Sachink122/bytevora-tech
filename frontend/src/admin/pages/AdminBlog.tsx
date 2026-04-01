@@ -121,9 +121,38 @@ OUTPUT FORMAT:
 
         if (response.ok) {
           const records = (await response.json()) as BlogRecord[]
-          // Never wipe local records on refresh if API currently returns empty.
-          if (records.length > 0 || localRecords.length === 0) {
-            localStorage.setItem('admin-blog', JSON.stringify(records))
+          // Merge server records with local drafts so we don't lose editor-only fields
+          // e.g. topic, targetKeyword, location, author, keywords, imageSuggestions, internalLinks
+          const extraKeys = [
+            'topic',
+            'targetKeyword',
+            'location',
+            'author',
+            'keywords',
+            'imageSuggestions',
+            'internalLinks',
+          ]
+
+          const merged = records.map((r) => {
+            const copy: any = { ...r }
+            const match = localRecords.find((l) => (l.slug && r.slug && l.slug === r.slug) || (l.id && r.id && l.id === r.id))
+            if (match) {
+              for (const k of extraKeys) {
+                const apiVal = (copy as any)[k]
+                const localVal = (match as any)[k]
+                if ((apiVal === undefined || apiVal === null || apiVal === '') && localVal !== undefined) {
+                  copy[k] = localVal
+                }
+              }
+            }
+            return copy as BlogRecord
+          })
+
+          // If server returned nothing but there are local drafts, keep local drafts.
+          if (merged.length > 0) {
+            localStorage.setItem('admin-blog', JSON.stringify(merged))
+          } else if (localRecords.length === 0) {
+            localStorage.setItem('admin-blog', JSON.stringify([]))
           }
         }
       } catch {
@@ -294,20 +323,37 @@ function QuickAdd({ setSyncMessage }: { setSyncMessage: (s: string) => void }) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
+        credentials: 'include',
         body: JSON.stringify(payload),
       })
 
       if (!res.ok) {
         let msg = 'Blog save failed'
         try {
-          const err = await res.json()
-          msg = err?.message || msg
+          const contentType = res.headers.get('content-type') || ''
+          if (contentType.includes('application/json')) {
+            const err = await res.json()
+            msg = err?.message || msg
+          } else {
+            const text = await res.text()
+            msg = text || msg
+          }
         } catch {}
         setSyncMessage(msg)
         return
       }
 
-      const saved = await res.json()
+      let saved: any = null
+      try {
+        saved = await res.json()
+      } catch (e) {
+        setSyncMessage('Saved to server')
+        setTimeout(() => setSyncMessage(''), 2000)
+        window.dispatchEvent(new CustomEvent('admin-blog-updated', { detail: payload }))
+        setOpen(false)
+        setForm({ title: '', slug: '', metaTitle: '', metaDescription: '', summary: '', contentHtml: '', status: 'Draft', images: [] })
+        return
+      }
       // notify manager UI to prepend the saved post
       window.dispatchEvent(new CustomEvent('admin-blog-updated', { detail: saved }))
 
