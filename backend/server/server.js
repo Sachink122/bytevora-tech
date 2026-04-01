@@ -157,10 +157,14 @@ app.get('/api/blog-posts', async (_req, res) => {
       metaTitle: r.metaTitle || r.meta_title || null,
       metaDescription: r.metaDescription || r.meta_description || null,
       summary: r.summary,
+      // Keep compatibility with frontend fields
       content: r.content,
+      contentHtml: r.content,
       images: (() => { try { return JSON.parse(r.images || '[]') } catch { return [] } })(),
+      featureImage: (() => { try { const imgs = JSON.parse(r.images || '[]'); return imgs && imgs.length ? imgs[0] : null } catch { return null } })(),
       published: !!r.published,
       status: r.published ? 'Published' : 'Draft',
+      publishDate: r.createdAt || r.created_at,
       createdAt: r.createdAt || r.created_at,
     }))
 
@@ -201,10 +205,14 @@ app.get('/api/admin/blog-posts', requireAuth, async (_req, res) => {
       metaTitle: r.metaTitle || r.meta_title || null,
       metaDescription: r.metaDescription || r.meta_description || null,
       summary: r.summary,
+      // Frontend expects `contentHtml` and `featureImage`
       content: r.content,
+      contentHtml: r.content,
       images: (() => { try { return JSON.parse(r.images || '[]') } catch { return [] } })(),
+      featureImage: (() => { try { const imgs = JSON.parse(r.images || '[]'); return imgs && imgs.length ? imgs[0] : null } catch { return null } })(),
       published: !!r.published,
       status: r.published ? 'Published' : 'Draft',
+      publishDate: r.createdAt || r.created_at,
       createdAt: r.createdAt || r.created_at,
     }))
 
@@ -232,19 +240,37 @@ app.post('/api/admin/blog-posts', requireAuth, async (req, res) => {
     }).returning()
 
     const r = insert?.[0]
-    const out = r ? {
-      id: r.id,
-      title: r.title,
-      slug: r.slug,
-      metaTitle: r.metaTitle || r.meta_title || null,
-      metaDescription: r.metaDescription || r.meta_description || null,
-      summary: r.summary,
-      content: r.content,
-      images: (() => { try { return JSON.parse(r.images || '[]') } catch { return [] } })(),
-      published: !!r.published,
-      status: r.published ? 'Published' : 'Draft',
-      createdAt: r.createdAt || r.created_at,
-    } : null
+    const out = r
+      ? {
+          id: r.id,
+          title: r.title,
+          slug: r.slug,
+          metaTitle: r.metaTitle || r.meta_title || null,
+          metaDescription: r.metaDescription || r.meta_description || null,
+          summary: r.summary,
+          content: r.content,
+          contentHtml: r.content,
+          images: (() => {
+            try {
+              return JSON.parse(r.images || '[]')
+            } catch {
+              return []
+            }
+          })(),
+          featureImage: (() => {
+            try {
+              const imgs = JSON.parse(r.images || '[]')
+              return imgs && imgs.length ? imgs[0] : null
+            } catch {
+              return null
+            }
+          })(),
+          published: !!r.published,
+          status: r.published ? 'Published' : 'Draft',
+          publishDate: r.createdAt || r.created_at,
+          createdAt: r.createdAt || r.created_at,
+        }
+      : null
 
     return res.status(201).json(out)
   } catch (error) {
