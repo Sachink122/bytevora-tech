@@ -284,6 +284,13 @@ app.post('/api/auth/logout', (_req, res) => {
   return res.status(204).send()
 })
 
+// Debug: show presence of important env vars (no secrets)
+app.get('/api/_debug/env', (_req, res) => {
+  const hasDB = !!process.env.DATABASE_URL || !!process.env.DATABASE_POSTGRES_URL
+  const hostSample = (process.env.DATABASE_URL || process.env.DATABASE_POSTGRES_URL || '').split('@')[1] || null
+  return res.json({ hasDB, hostSample: hostSample ? `...${hostSample.slice(-50)}` : null, hasPG_SSL: process.env.PG_SSL || null })
+})
+
 app.get('/api/auth/me', requireAuth, (req, res) => {
   if (req.auth?.email?.toLowerCase() !== adminUser.email.toLowerCase()) {
     return res.status(401).json({ message: 'User no longer available' })
