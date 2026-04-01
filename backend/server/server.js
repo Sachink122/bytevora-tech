@@ -264,14 +264,14 @@ app.post('/api/admin/seed-defaults', requireAuth, async (_req, res) => {
     ]
 
     for (const t of teamMembersData) {
-      const exists = await db.select().from(teamMembers).where(teamMembers.email.eq(t.email))
+      const exists = await db.select().from(teamMembers).where(eq(teamMembers.email, t.email))
       if (!exists?.length) {
         await db.insert(teamMembers).values(t)
       }
     }
 
     for (const b of blogPostsData) {
-      const exists = await db.select().from(blogPosts).where(blogPosts.slug.eq(b.slug))
+      const exists = await db.select().from(blogPosts).where(eq(blogPosts.slug, b.slug))
       if (!exists?.length) {
         await db.insert(blogPosts).values(b)
       }
