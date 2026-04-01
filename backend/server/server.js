@@ -5,6 +5,9 @@ import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import dotenv from 'dotenv'
 import cookieParser from 'cookie-parser'
+import { db } from '../db/index.js'
+import { teamMembers, blogPosts, leads } from '../db/schema.js'
+import { eq } from 'drizzle-orm'
 
 dotenv.config()
 
@@ -128,6 +131,58 @@ function requireAuth(req, res, next) {
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' })
+})
+
+// Public: Get all team members
+app.get('/api/team', async (_req, res) => {
+  try {
+    const members = await db.select().from(teamMembers)
+    return res.json(members)
+  } catch (error) {
+    console.error('GET /api/team failed', error)
+    return res.status(500).json({ message: 'Failed to fetch team members' })
+  }
+})
+
+// Public: Get blog posts
+app.get('/api/blog-posts', async (_req, res) => {
+  try {
+    const posts = await db.select().from(blogPosts)
+    return res.json(posts)
+  } catch (error) {
+    console.error('GET /api/blog-posts failed', error)
+    return res.status(500).json({ message: 'Failed to fetch blog posts' })
+  }
+})
+
+// Leads: POST public (save a lead), GET requires auth
+app.get('/api/leads', requireAuth, async (_req, res) => {
+  try {
+    const all = await db.select().from(leads)
+    return res.json(all)
+  } catch (error) {
+    console.error('GET /api/leads failed', error)
+    return res.status(500).json({ message: 'Failed to fetch leads' })
+  }
+})
+
+app.post('/api/leads', async (req, res) => {
+  const payload = req.body || {}
+  try {
+    const insert = await db.insert(leads).values({
+      first_name: payload.firstName || payload.first_name || null,
+      last_name: payload.lastName || payload.last_name || null,
+      email: payload.email || null,
+      phone: payload.phone || null,
+      service: payload.service || null,
+      project_details: payload.project_details || payload.details || null,
+    }).returning()
+
+    return res.status(201).json({ lead: insert?.[0] ?? null })
+  } catch (error) {
+    console.error('POST /api/leads failed', error)
+    return res.status(500).json({ message: 'Failed to save lead' })
+  }
 })
 
 app.post('/api/auth/login', (req, res) => {
