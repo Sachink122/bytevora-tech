@@ -12,6 +12,9 @@ import { eq } from 'drizzle-orm'
 
 dotenv.config()
 
+// Temporary in-memory store for last admin error (for debugging only)
+let lastAdminError = null
+
 const app = express()
 const PORT = Number(process.env.AUTH_API_PORT || 4000)
 const JWT_SECRET = process.env.AUTH_JWT_SECRET || 'change-this-secret-in-production'
@@ -209,6 +212,11 @@ app.get('/api/debug/blog-raw', async (_req, res) => {
   }
 })
 
+// Debug: expose last admin error (temporary)
+app.get('/api/debug/last-admin-error', (_req, res) => {
+  return res.json({ lastAdminError })
+})
+
 // Backwards-compat: redirect admin GET requests to the unified public endpoints
 app.get('/api/admin/blog-posts', (_req, res) => {
   return res.redirect(307, '/api/blog-posts')
@@ -264,6 +272,7 @@ app.delete('/api/admin/team/:id', requireAuth, async (req, res) => {
 app.post('/api/admin/blog-posts', requireAuth, async (req, res) => {
   const payload = req.body || {}
   try {
+    console.log('/api/admin/blog-posts called. authHeaderPresent=', !!req.headers.authorization, 'payloadKeys=', Object.keys(payload))
     const published = payload.published === true || String(payload.status || '').toLowerCase() === 'published'
     const insert = await db.insert(blogPosts).values({
       title: payload.title || null,
@@ -312,6 +321,19 @@ app.post('/api/admin/blog-posts', requireAuth, async (req, res) => {
     return res.status(201).json(out)
   } catch (error) {
     console.error('POST /api/admin/blog-posts failed', error?.stack || error)
+    try {
+      lastAdminError = {
+        time: new Date().toISOString(),
+        route: '/api/admin/blog-posts',
+        message: String(error?.message),
+        stack: error?.stack || null,
+        authHeaderPresent: !!req.headers.authorization,
+        payloadSnippet: (() => {
+          try { return JSON.stringify(req.body).slice(0, 1000) } catch { return null }
+        })(),
+      }
+    } catch (_) {}
+
     return res.status(500).json({ message: 'Failed to save blog post', error: String(error?.message) })
   }
 })
