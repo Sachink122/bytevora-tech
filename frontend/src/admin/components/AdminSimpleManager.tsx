@@ -51,7 +51,7 @@ const AdminSimpleManager = ({
   statusOptions = ['Active', 'Inactive'],
   addButtonLabel = 'Add Item',
 }: AdminSimpleManagerProps) => {
-  const apiMode = storageKey === 'admin-blog'
+  const apiMode = storageKey === 'admin-blog' || storageKey === 'admin-team'
   const localStorageState = useLocalStorageState<RecordItem[]>(storageKey, [])
   const apiState = useState<RecordItem[]>([])
   const records = apiMode ? apiState[0] : localStorageState[0]
@@ -64,7 +64,8 @@ const AdminSimpleManager = ({
     const fetchPosts = async () => {
       try {
         const token = localStorage.getItem('agency_auth_token') || ''
-        const resp = await fetch(`${API_BASE_URL}/api/admin/blog-posts`, {
+        const endpoint = storageKey === 'admin-team' ? '/api/team' : '/api/admin/blog-posts'
+        const resp = await fetch(`${API_BASE_URL}${endpoint}`, {
           headers: token
             ? {
                 Authorization: `Bearer ${token}`,
@@ -157,7 +158,9 @@ const AdminSimpleManager = ({
           // map form keys to API fields if necessary
           if (payload.contentHtml) payload.content = payload.contentHtml
 
-          const resp = await fetch(`${API_BASE_URL}/api/admin/blog-posts`, {
+          const endpoint = storageKey === 'admin-team' ? '/api/admin/team' : '/api/admin/blog-posts'
+
+          const resp = await fetch(`${API_BASE_URL}${endpoint}`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -173,7 +176,9 @@ const AdminSimpleManager = ({
           }
 
           const saved = await resp.json()
-          setRecords((prev) => [saved as RecordItem, ...prev])
+          // saved may be wrapped (e.g., { member } or saved object); normalize
+          const item = saved?.member || saved
+          setRecords((prev) => [item as RecordItem, ...prev])
           setIsAddOpen(false)
           resetNewForm()
           setToast({ type: 'success', message: `${title} item added.` })
@@ -202,6 +207,47 @@ const AdminSimpleManager = ({
     if (!selectedRecord) return
     if (!validate(editForm)) return
 
+    if (apiMode) {
+      ;(async () => {
+        try {
+          const token = localStorage.getItem('agency_auth_token') || ''
+          if (!token) {
+            setToast({ type: 'warning', message: 'You must be logged in to update items.' })
+            return
+          }
+
+          const endpoint = storageKey === 'admin-team' ? `/api/admin/team/${selectedRecord.id}` : `/api/admin/blog-posts`
+          const payload = { ...editForm }
+          if (payload.contentHtml) payload.content = payload.contentHtml
+
+          const resp = await fetch(`${API_BASE_URL}${endpoint}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(payload),
+          })
+
+          if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}))
+            setToast({ type: 'error', message: `Update failed: ${err?.message || resp.statusText}` })
+            return
+          }
+
+          const updated = await resp.json()
+          const item = updated?.member || updated
+          setRecords((prev) => prev.map((it) => (it.id === selectedRecord.id ? (item as RecordItem) : it)))
+          setIsEditOpen(false)
+          setSelectedRecord(null)
+          setToast({ type: 'success', message: `${title} item updated.` })
+        } catch (e) {
+          setToast({ type: 'error', message: `Update failed: ${(e as Error).message}` })
+        }
+      })()
+      return
+    }
+
     setRecords((prev) =>
       prev.map((item) =>
         item.id === selectedRecord.id
@@ -220,6 +266,40 @@ const AdminSimpleManager = ({
 
   const deleteRecord = () => {
     if (!recordToDelete) return
+
+    if (apiMode) {
+      ;(async () => {
+        try {
+          const token = localStorage.getItem('agency_auth_token') || ''
+          if (!token) {
+            setToast({ type: 'warning', message: 'You must be logged in to delete items.' })
+            return
+          }
+
+          const endpoint = storageKey === 'admin-team' ? `/api/admin/team/${recordToDelete.id}` : `/api/admin/blog-posts/${recordToDelete.id}`
+          const resp = await fetch(`${API_BASE_URL}${endpoint}`, {
+            method: 'DELETE',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          })
+
+          if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}))
+            setToast({ type: 'error', message: `Delete failed: ${err?.message || resp.statusText}` })
+            return
+          }
+
+          setRecords((prev) => prev.filter((item) => item.id !== recordToDelete.id))
+          setRecordToDelete(null)
+          setToast({ type: 'success', message: `${title} item deleted.` })
+        } catch (e) {
+          setToast({ type: 'error', message: `Delete failed: ${(e as Error).message}` })
+        }
+      })()
+      return
+    }
+
     setRecords((prev) => prev.filter((item) => item.id !== recordToDelete.id))
     setRecordToDelete(null)
     setToast({ type: 'success', message: `${title} item deleted.` })

@@ -148,8 +148,8 @@ app.get('/api/team', async (_req, res) => {
 // Public: Get blog posts
 app.get('/api/blog-posts', async (_req, res) => {
   try {
-    // Return only published posts to public API and normalize keys
-    const rows = await db.select().from(blogPosts).where(eq(blogPosts.published, true))
+    // Return all posts (single source of truth for admin + public) and normalize keys
+    const rows = await db.select().from(blogPosts)
     const posts = (rows || []).map((r) => ({
       id: r.id,
       title: r.title,
@@ -164,8 +164,8 @@ app.get('/api/blog-posts', async (_req, res) => {
       featureImage: (() => { try { const imgs = JSON.parse(r.images || '[]'); return imgs && imgs.length ? imgs[0] : null } catch { return null } })(),
       published: !!r.published,
       status: r.published ? 'Published' : 'Draft',
-      publishDate: r.createdAt || r.created_at,
-      createdAt: r.createdAt || r.created_at,
+      publishDate: r.publish_date || r.createdAt || r.created_at || null,
+      createdAt: r.createdAt || r.created_at || null,
     }))
 
     return res.json(posts)
@@ -194,32 +194,69 @@ app.get('/api/debug/db-status', async (_req, res) => {
   }
 })
 
-// Admin: Get blog posts (admin view)
-app.get('/api/admin/blog-posts', requireAuth, async (_req, res) => {
+// DEBUG: Run raw blog_posts query to capture runtime errors (temporary)
+app.get('/api/debug/blog-raw', async (_req, res) => {
   try {
-    const rows = await db.select().from(blogPosts)
-    const posts = (rows || []).map((r) => ({
-      id: r.id,
-      title: r.title,
-      slug: r.slug,
-      metaTitle: r.metaTitle || r.meta_title || null,
-      metaDescription: r.metaDescription || r.meta_description || null,
-      summary: r.summary,
-      // Frontend expects `contentHtml` and `featureImage`
-      content: r.content,
-      contentHtml: r.content,
-      images: (() => { try { return JSON.parse(r.images || '[]') } catch { return [] } })(),
-      featureImage: (() => { try { const imgs = JSON.parse(r.images || '[]'); return imgs && imgs.length ? imgs[0] : null } catch { return null } })(),
-      published: !!r.published,
-      status: r.published ? 'Published' : 'Draft',
-      publishDate: r.createdAt || r.created_at,
-      createdAt: r.createdAt || r.created_at,
-    }))
+    const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.DATABASE_POSTGRES_URL
+    const client = new pg.Client({ connectionString, ssl: { rejectUnauthorized: false } })
+    await client.connect()
+    const rows = await client.query('SELECT * FROM blog_posts WHERE published = true')
+    await client.end()
+    return res.json({ ok: true, rows: rows.rows })
+  } catch (err) {
+    console.error('/api/debug/blog-raw failed', err)
+    return res.status(500).json({ message: 'Raw blog query failed', error: String(err?.message), stack: err?.stack })
+  }
+})
 
-    return res.json(posts)
-  } catch (error) {
-    console.error('GET /api/admin/blog-posts failed', error)
-    return res.status(500).json({ message: 'Failed to fetch admin blog posts' })
+// Backwards-compat: redirect admin GET requests to the unified public endpoints
+app.get('/api/admin/blog-posts', (_req, res) => {
+  return res.redirect(307, '/api/blog-posts')
+})
+
+// Backwards-compat: admin team -> public team
+app.get('/api/admin/team', (_req, res) => {
+  return res.redirect(307, '/api/team')
+})
+
+// Admin: Add a new team member (API-backed)
+app.post('/api/admin/team', requireAuth, async (req, res) => {
+  const { name, role, email, phone, skills, status } = req.body || {}
+  if (!name) return res.status(400).json({ message: 'Name is required' })
+  try {
+    const insert = await db.insert(teamMembers).values({ name, role, email, phone, skills, status }).returning()
+    const member = insert?.[0] || null
+    return res.status(201).json({ member })
+  } catch (err) {
+    console.error('POST /api/admin/team failed', err)
+    return res.status(500).json({ message: 'Failed to add team member', error: String(err?.message) })
+  }
+})
+
+// Admin: Update a team member
+app.put('/api/admin/team/:id', requireAuth, async (req, res) => {
+  const id = Number(req.params.id)
+  const { name, role, email, phone, skills, status } = req.body || {}
+  if (!name) return res.status(400).json({ message: 'Name is required' })
+  try {
+    await db.update(teamMembers).set({ name, role, email, phone, skills, status }).where(eq(teamMembers.id, id))
+    const rows = await db.select().from(teamMembers).where(eq(teamMembers.id, id))
+    return res.json({ member: rows?.[0] || null })
+  } catch (err) {
+    console.error('PUT /api/admin/team/:id failed', err)
+    return res.status(500).json({ message: 'Failed to update team member', error: String(err?.message) })
+  }
+})
+
+// Admin: Delete a team member
+app.delete('/api/admin/team/:id', requireAuth, async (req, res) => {
+  const id = Number(req.params.id)
+  try {
+    await db.delete(teamMembers).where(eq(teamMembers.id, id))
+    return res.json({ ok: true })
+  } catch (err) {
+    console.error('DELETE /api/admin/team/:id failed', err)
+    return res.status(500).json({ message: 'Failed to delete team member', error: String(err?.message) })
   }
 })
 
