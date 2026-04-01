@@ -151,31 +151,50 @@ app.get('/api/team', async (_req, res) => {
 })
 
 // Public: Get blog posts
-app.get('/api/blog-posts', async (_req, res) => {
+app.get('/api/blog-posts', async (req, res) => {
   try {
-    // Return all posts (single source of truth for admin + public) and normalize keys
-    const rows = await db.select().from(blogPosts)
-    const posts = (rows || []).map((r) => ({
+    const result = await db.query(`
+      SELECT
+        id,
+        title,
+        slug,
+        content,
+        author,
+        status,
+        published,
+        meta_title,
+        meta_description,
+        summary,
+        images,
+        publish_date,
+        created_at
+      FROM blog_posts
+      ORDER BY created_at DESC
+    `)
+
+    const rows = (result && result.rows) ? result.rows : []
+
+    const out = rows.map((r) => ({
       id: r.id,
       title: r.title,
       slug: r.slug,
-      metaTitle: r.metaTitle || r.meta_title || null,
-      metaDescription: r.metaDescription || r.meta_description || null,
-      summary: r.summary,
-      // Keep compatibility with frontend fields
-      content: r.content,
-      contentHtml: r.content,
+      metaTitle: r.meta_title || null,
+      metaDescription: r.meta_description || null,
+      summary: r.summary || null,
+      content: r.content || null,
+      contentHtml: r.content || null,
+      author: r.author || null,
       images: (() => { try { return JSON.parse(r.images || '[]') } catch { return [] } })(),
       featureImage: (() => { try { const imgs = JSON.parse(r.images || '[]'); return imgs && imgs.length ? imgs[0] : null } catch { return null } })(),
       published: !!r.published,
-      status: r.published ? 'Published' : 'Draft',
-      publishDate: r.publish_date || r.createdAt || r.created_at || null,
-      createdAt: r.createdAt || r.created_at || null,
+      status: r.status || (r.published ? 'Published' : 'Draft'),
+      publishDate: r.publish_date || r.created_at || null,
+      createdAt: r.created_at || null,
     }))
 
-    return res.json(posts)
+    return res.json(out)
   } catch (error) {
-    console.error('GET /api/blog-posts failed', error)
+    console.error('GET /api/blog-posts failed (raw query)', error)
     return res.status(500).json({ message: 'Failed to fetch blog posts' })
   }
 })
@@ -291,12 +310,15 @@ app.post('/api/admin/blog-posts', requireAuth, async (req, res) => {
     const insert = await db.insert(blogPosts).values({
       title: payload.title || null,
       slug: payload.slug || null,
-      metaTitle: payload.metaTitle || payload.meta_title || null,
-      metaDescription: payload.metaDescription || payload.meta_description || null,
+      meta_title: payload.metaTitle || payload.meta_title || null,
+      meta_description: payload.metaDescription || payload.meta_description || null,
       summary: payload.summary || null,
       content: payload.content || null,
       images: JSON.stringify(payload.images || []),
       published: published,
+      author: payload.author || null,
+      status: payload.status || (published ? 'Published' : 'Draft'),
+      publish_date: payload.publishDate || null,
     }).returning()
 
     const r = insert?.[0]
@@ -305,8 +327,8 @@ app.post('/api/admin/blog-posts', requireAuth, async (req, res) => {
           id: r.id,
           title: r.title,
           slug: r.slug,
-          metaTitle: r.metaTitle || r.meta_title || null,
-          metaDescription: r.metaDescription || r.meta_description || null,
+          metaTitle: r.meta_title || r.metaTitle || null,
+          metaDescription: r.meta_description || r.metaDescription || null,
           summary: r.summary,
           content: r.content,
           contentHtml: r.content,
@@ -326,9 +348,9 @@ app.post('/api/admin/blog-posts', requireAuth, async (req, res) => {
             }
           })(),
           published: !!r.published,
-          status: r.published ? 'Published' : 'Draft',
-          publishDate: r.createdAt || r.created_at,
-          createdAt: r.createdAt || r.created_at,
+          status: r.status || (r.published ? 'Published' : 'Draft'),
+          publishDate: r.publish_date || r.created_at,
+          createdAt: r.created_at,
         }
       : null
 
