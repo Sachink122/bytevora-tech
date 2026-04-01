@@ -38,6 +38,8 @@ app.get('/api/team', async (_req, res) => {
 	}
 });
 
+// requireAuth is provided by server.js; admin routes should use it via import in server.js
+
 // Admin: Add a new team member
 app.post('/api/admin/team', requireAuth, async (req, res) => {
 	const { name, role, email, phone, skills, status } = req.body;
