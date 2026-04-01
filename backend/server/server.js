@@ -140,7 +140,7 @@ app.get('/api/team', async (_req, res) => {
     return res.json(members)
   } catch (error) {
     console.error('GET /api/team failed', error?.stack || error)
-    return res.status(500).json({ message: 'Failed to fetch team members' })
+    return res.status(500).json({ message: 'Failed to fetch team members', error: String(error?.message), stack: error?.stack })
   }
 })
 
@@ -151,7 +151,7 @@ app.get('/api/blog-posts', async (_req, res) => {
     return res.json(posts)
   } catch (error) {
     console.error('GET /api/blog-posts failed', error?.stack || error)
-    return res.status(500).json({ message: 'Failed to fetch blog posts' })
+    return res.status(500).json({ message: 'Failed to fetch blog posts', error: String(error?.message), stack: error?.stack })
   }
 })
 
@@ -181,7 +181,7 @@ app.post('/api/leads', async (req, res) => {
     return res.status(201).json({ lead: insert?.[0] ?? null })
   } catch (error) {
     console.error('POST /api/leads failed', error?.stack || error)
-    return res.status(500).json({ message: 'Failed to save lead' })
+    return res.status(500).json({ message: 'Failed to save lead', error: String(error?.message), stack: error?.stack })
   }
 })
 
