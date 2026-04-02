@@ -280,6 +280,40 @@ app.get('/api/debug/runtime-env', (_req, res) => {
   }
 })
 
+// DEBUG: perform a TLS handshake to the DB host and return cert details
+import tls from 'tls'
+
+app.get('/api/debug/tls-check', async (_req, res) => {
+  try {
+    const connectionString = process.env.DATABASE_URL
+    if (!connectionString) return res.status(500).json({ message: 'DATABASE_URL is not configured' })
+    const host = getDbHostFromUrl(connectionString)
+    const port = 5432
+
+    const socket = tls.connect({ host, port, servername: host, rejectUnauthorized: false, timeout: 8000 }, () => {
+      const cert = socket.getPeerCertificate(true)
+      const authorized = socket.authorized
+      const authError = socket.authorizationError || null
+      socket.end()
+      return res.json({ ok: true, host, port, authorized, authError, cert: {
+        subject: cert.subject || null,
+        issuer: cert.issuer || null,
+        valid_from: cert.valid_from || null,
+        valid_to: cert.valid_to || null,
+        fingerprint: cert.fingerprint || null,
+      } })
+    })
+
+    socket.on('error', (err) => {
+      try { socket.destroy() } catch (_) {}
+      return res.status(500).json({ message: 'TLS connection failed', error: String(err?.message) })
+    })
+  } catch (err) {
+    console.error('/api/debug/tls-check failed', err)
+    return res.status(500).json({ message: 'TLS check failure', error: String(err?.message) })
+  }
+})
+
 // DEBUG: Run raw blog_posts query to capture runtime errors (temporary)
 app.get('/api/debug/blog-raw', async (_req, res) => {
   try {
