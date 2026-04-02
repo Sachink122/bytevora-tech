@@ -39,6 +39,32 @@ console.log('DB URL exists:', !!process.env.DATABASE_URL)
   }
 })()
 
+// Utility: safely extract hostname from a Postgres connection string
+function getDbHostFromUrl(connectionString) {
+  try {
+    if (!connectionString) return null
+    // support both postgres:// and postgresql://
+    const withoutCreds = connectionString.replace(/.*@/, '')
+    // withoutCreds is like host:port/dbname?params
+    const hostPart = withoutCreds.split('/')[0]
+    const host = hostPart.split(':')[0]
+    return host || null
+  } catch {
+    return null
+  }
+}
+
+// Runtime diagnostic info logged at startup (masked values only)
+(function logRuntimeDbInfo() {
+  const cfg = {
+    databaseUrlPresent: !!process.env.DATABASE_URL,
+    dbHost: getDbHostFromUrl(process.env.DATABASE_URL) || null,
+    pgSsl: String(process.env.PG_SSL ?? 'true').toLowerCase(),
+    pgSslMode: process.env.PGSSLMODE || null,
+  }
+  console.log('Runtime DB diagnostics:', JSON.stringify(cfg))
+})()
+
 // Temporary in-memory store for last admin error (for debugging only)
 let lastAdminError = null
 // Temporary store for last admin POST attempt (headers + payload snippet)
@@ -235,6 +261,22 @@ app.get('/api/debug/db-status', async (_req, res) => {
   } catch (err) {
     console.error('/api/debug/db-status failed', err)
     return res.status(500).json({ message: 'DB diagnostics failed', error: String(err?.message) })
+  }
+})
+
+// DEBUG: Expose minimal runtime env diagnostics (do not include credentials)
+app.get('/api/debug/runtime-env', (_req, res) => {
+  try {
+    const dbHost = getDbHostFromUrl(process.env.DATABASE_URL)
+    return res.json({
+      databaseUrlPresent: !!process.env.DATABASE_URL,
+      dbHost: dbHost || null,
+      pgSsl: String(process.env.PG_SSL ?? 'true').toLowerCase(),
+      pgSslMode: process.env.PGSSLMODE || null,
+    })
+  } catch (err) {
+    console.error('/api/debug/runtime-env failed', err)
+    return res.status(500).json({ message: 'Failed to read runtime env', error: String(err?.message) })
   }
 })
 
