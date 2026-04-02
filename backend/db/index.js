@@ -25,9 +25,21 @@ if (!connectionString) {
 // Reuse a global pool in serverless environments to avoid exhausting
 // database connections on cold starts / repeated imports.
 if (!globalThis.__PG_POOL) {
+  // Attempt to extract hostname for SNI (servername) to avoid TLS hostname mismatches
+  let servername = undefined
+  try {
+    const u = new URL(connectionString)
+    servername = u.hostname
+  } catch (_) {
+    const m = connectionString.match(/@([^:/?]+)/)
+    servername = m && m[1] ? m[1] : undefined
+  }
+
+  const sslOpts = useSsl ? { rejectUnauthorized: false, servername } : undefined
+
   globalThis.__PG_POOL = new Pool({
     connectionString,
-    ssl: useSsl ? { rejectUnauthorized: false } : undefined,
+    ssl: sslOpts,
   })
 }
 

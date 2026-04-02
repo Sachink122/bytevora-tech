@@ -209,7 +209,7 @@ app.get('/api/blog-posts', async (req, res) => {
     const connectionString = process.env.DATABASE_URL
     if (!connectionString) return res.status(500).json({ message: 'DATABASE_URL is not configured' })
     const useSsl = String(process.env.PG_SSL ?? 'true').toLowerCase() === 'true'
-    const client = new pg.Client({ connectionString, ssl: useSsl ? { rejectUnauthorized: false } : undefined })
+    const client = new pg.Client({ connectionString, ssl: useSsl ? { rejectUnauthorized: false, servername: getDbHostFromUrl(connectionString) } : undefined })
     await client.connect()
     const result = await client.query(`
       SELECT id, title, slug, content, meta_title, meta_description, summary, images, published, created_at
@@ -249,7 +249,7 @@ app.get('/api/debug/db-status', async (_req, res) => {
     const connectionString = process.env.DATABASE_URL
     if (!connectionString) return res.status(500).json({ message: 'DATABASE_URL is not configured' })
     const useSsl = String(process.env.PG_SSL ?? 'true').toLowerCase() === 'true'
-    const client = new pg.Client({ connectionString, ssl: useSsl ? { rejectUnauthorized: false } : undefined })
+    const client = new pg.Client({ connectionString, ssl: useSsl ? { rejectUnauthorized: false, servername: getDbHostFromUrl(connectionString) } : undefined })
     await client.connect()
     const tCount = await client.query('SELECT COUNT(*) AS cnt FROM team_members')
     const tSample = await client.query('SELECT id, name, role, email, status FROM team_members ORDER BY id LIMIT 5')
@@ -286,7 +286,7 @@ app.get('/api/debug/blog-raw', async (_req, res) => {
     const connectionString = process.env.DATABASE_URL
     if (!connectionString) return res.status(500).json({ message: 'DATABASE_URL is not configured' })
     const useSsl = String(process.env.PG_SSL ?? 'true').toLowerCase() === 'true'
-    const client = new pg.Client({ connectionString, ssl: useSsl ? { rejectUnauthorized: false } : undefined })
+    const client = new pg.Client({ connectionString, ssl: useSsl ? { rejectUnauthorized: false, servername: getDbHostFromUrl(connectionString) } : undefined })
     await client.connect()
     const rows = await client.query('SELECT * FROM blog_posts WHERE published = true')
     await client.end()
